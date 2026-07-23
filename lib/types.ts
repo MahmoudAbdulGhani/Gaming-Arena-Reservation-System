@@ -1,0 +1,142 @@
+// ──────────────────────────────────────────────
+//  Frontend-facing types for Gaming Arena Reservation System
+// ──────────────────────────────────────────────
+//  These mirror the database shapes in `lib/models.ts`, but with
+//  ObjectId -> string and Date -> string
+
+import type {
+  RoomType,
+  RoomStatus,
+  DeviceStatus,
+  BookingStatus,
+  PaymentStatus,
+  UserRole,
+  TransactionStatus,
+} from './models'
+
+export type {
+  RoomType,
+  RoomStatus,
+  DeviceStatus,
+  BookingStatus,
+  PaymentStatus,
+  UserRole,
+  TransactionStatus,
+}
+
+export interface Room {
+  _id: string
+  name: string
+  type: RoomType
+  description: string
+  images: string[]
+  pricePerHour: number
+  totalDevices: number
+  status: RoomStatus
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Device {
+  _id: string
+  roomId: string
+  deviceLabel: string
+  status: DeviceStatus
+  specs: string
+  createdAt: string
+}
+
+export interface User {
+  _id: string
+  name: string
+  email: string
+  role: UserRole
+  phone?: string
+  isVerified: boolean
+  createdAt: string
+}
+
+export interface Booking {
+  _id: string
+  userId: string
+  roomId: string
+  room?: Room // populated by the API route, not stored on the document
+  deviceIds: string[]
+  devices?: Device[] // populated by the API route, not stored on the document
+  deviceCount: number
+  bookingDate: string
+  startTime: string
+  endTime: string
+  durationHours: number
+  totalPrice: number
+  status: BookingStatus
+  paymentStatus: PaymentStatus
+  paymentId?: string
+  confirmationMessage?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Payment {
+  _id: string
+  bookingId: string
+  userId: string
+  amount: number
+  currency: string
+  paymentMethod: string
+  transactionId: string
+  status: TransactionStatus
+  createdAt: string
+  updatedAt: string
+}
+
+// UI-only concept — has no matching database collection.
+export interface TimeSlot {
+  time: string
+  available: boolean
+}
+
+// ──────────────────────────────────────────────
+//  Derived / computed helpers
+// ──────────────────────────────────────────────
+//
+//  Room.status (from the database) is the ADMIN-controlled field —
+//  'active' | 'inactive' | 'maintenance' — set by an admin toggling the
+//  room on/off or flagging the whole room for maintenance.
+//
+//  Rooms with multiple devices (PC Lab, Console Lounge, VR Room) are
+//  bookable as long as AT LEAST ONE device is free — one device being
+//  in maintenance doesn't take the whole room down.
+//
+//  Rooms with exactly ONE device mirror that device's status directly
+//  rather than being derived from a count: if the device is 'booked',
+//  the room is 'booked'; if it's in 'maintenance', the room is too —
+//  there's no "1 of 1 available" to fall back on.
+
+export type RoomAvailability = 'available' | 'booked' | 'maintenance' | 'inactive'
+
+export function getRoomAvailability(room: Room, devices: Device[]): RoomAvailability {
+  // Admin-set states always win, regardless of device status.
+  if (room.status === 'inactive') return 'inactive'
+  if (room.status === 'maintenance') return 'maintenance'
+
+  if (devices.length === 1) {
+    const [device] = devices
+    if (device.status === 'maintenance') return 'maintenance'
+    return device.status === 'available' ? 'available' : 'booked'
+  }
+
+  const availableCount = devices.filter((d) => d.status === 'available').length
+  return availableCount > 0 ? 'available' : 'booked'
+}
+
+// Payload shape for the admin "activate/deactivate room" action. Only
+// 'active'/'inactive' are admin-toggleable this way — 'maintenance' is
+// set separately (e.g. by staff flagging an issue), not part of the
+// simple on/off switch.
+export type RoomAdminStatus = Extract<RoomStatus, 'active' | 'inactive'>
+
+export interface UpdateRoomStatusPayload {
+  roomId: string
+  status: RoomAdminStatus
+}
