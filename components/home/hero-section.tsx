@@ -76,14 +76,6 @@ export default function HeroSection() {
                     <span>Instant online payment</span>
                 </div>
             </div>
-
-            {/* Scroll indicator */}
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-[#9BA3B7] text-xs" aria-hidden="true">
-                <span>Scroll to explore</span>
-                <div className="w-5 h-8 rounded-full border border-[#262D3D] flex items-start justify-center pt-1.5">
-                    <div className="w-1 h-2 rounded-full bg-[#7C5CFF] animate-bounce" />
-                </div>
-            </div>
         </section>
     )
 }
