@@ -4,15 +4,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Monitor, Gamepad2, Glasses, Users, Cpu, Zap, Clock } from 'lucide-react'
 import type { Room } from '@/lib/types'
-import { getRoomAvailability } from '@/lib/types'
+import { getRoomAvailability, roomTypeLabels } from '@/lib/types'
 import { mockDevices } from '@/lib/mock-data'
-
-const typeLabels: Record<string, string> = {
-  pc: 'PC',
-  console: 'Console',
-  vr: 'VR',
-  private: 'Private Room',
-}
 
 const typeIcons: Record<string, React.ReactNode> = {
   pc: <Monitor className="w-4 h-4" />,
@@ -81,15 +74,15 @@ export default function RoomCard({ room, compact = false }: RoomCardProps) {
         <div className="absolute top-3 right-3">
           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${typeColors[room.type]}`}>
             {typeIcons[room.type]}
-            {typeLabels[room.type]}
+            {roomTypeLabels[room.type]}
           </span>
         </div>
 
         {/* Device availability pill */}
         <div className="absolute bottom-3 right-3">
           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-sm border ${availableCount > 0
-            ? 'bg-[#0B0E14]/80 border-[#33E6A0]/30 text-[#33E6A0]'
-            : 'bg-[#0B0E14]/80 border-[#FF5C7A]/30 text-[#FF5C7A]'
+              ? 'bg-[#0B0E14]/80 border-[#33E6A0]/30 text-[#33E6A0]'
+              : 'bg-[#0B0E14]/80 border-[#FF5C7A]/30 text-[#FF5C7A]'
             }`}>
             <Cpu className="w-3 h-3" aria-hidden="true" />
             {availableCount}/{totalCount} free
@@ -131,8 +124,8 @@ export default function RoomCard({ room, compact = false }: RoomCardProps) {
               <span className="text-xs text-[#9BA3B7]">{totalCount} devices total</span>
             </div>
             <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${availableCount > 0
-              ? 'bg-[#33E6A0]/5 border-[#33E6A0]/20'
-              : 'bg-[#FF5C7A]/5 border-[#FF5C7A]/20'
+                ? 'bg-[#33E6A0]/5 border-[#33E6A0]/20'
+                : 'bg-[#FF5C7A]/5 border-[#FF5C7A]/20'
               }`}>
               <span className={`text-xs font-semibold ${availableCount > 0 ? 'text-[#33E6A0]' : 'text-[#FF5C7A]'}`}>
                 {availableCount} available
@@ -166,8 +159,8 @@ export default function RoomCard({ room, compact = false }: RoomCardProps) {
               {availability === 'maintenance'
                 ? 'Maintenance'
                 : availability === 'inactive'
-                  ? 'Closed'
-                  : 'No devices free'}
+                ? 'Closed'
+                : 'No devices free'}
             </button>
           )}
         </div>

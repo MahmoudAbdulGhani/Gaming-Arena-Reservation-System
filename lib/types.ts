@@ -1,8 +1,6 @@
 // ──────────────────────────────────────────────
 //  Frontend-facing types for Gaming Arena Reservation System
 // ──────────────────────────────────────────────
-//  These mirror the database shapes in `lib/models.ts`, but with
-//  ObjectId -> string and Date -> string
 
 import type {
   RoomType,
@@ -96,13 +94,25 @@ export interface TimeSlot {
   available: boolean
 }
 
+// Shared display labels for RoomType — one place to edit, so every
+// component (room cards, booking steps, confirmation) shows the same text.
+export const roomTypeLabels: Record<RoomType, string> = {
+  pc: 'PC',
+  console: 'Console',
+  vr: 'VR',
+  private: 'Private Room',
+}
+
 // ──────────────────────────────────────────────
 //  Derived / computed helpers
 // ──────────────────────────────────────────────
 //
 //  Room.status (from the database) is the ADMIN-controlled field —
 //  'active' | 'inactive' | 'maintenance' — set by an admin toggling the
-//  room on/off or flagging the whole room for maintenance.
+//  room on/off or flagging the whole room for maintenance. It says
+//  nothing about whether the room is bookable RIGHT NOW; that depends
+//  on the live status of its devices, so it's computed here instead of
+//  stored as a second field that could go stale.
 //
 //  Rooms with multiple devices (PC Lab, Console Lounge, VR Room) are
 //  bookable as long as AT LEAST ONE device is free — one device being
