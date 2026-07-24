@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Gamepad2, Zap } from 'lucide-react'
+import { Gamepad2, Zap, LogOut, User } from 'lucide-react'
+import { useAuth } from '@/lib/auth-context'
 
 const navLinks = [
   { label: 'Home', href: '/' },
@@ -17,6 +18,7 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const pathname = usePathname()
+  const { user, loading, logout } = useAuth()
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20)
@@ -50,11 +52,12 @@ export default function Navbar() {
           {/* Desktop nav links */}
           <ul className="hidden md:flex items-center gap-1" role="list">
             {navLinks.map((link) => {
-              const isActive = pathname === link.href
+              const href = link.label === 'Dashboard' && user?.role === 'admin' ? '/admin' : link.href
+              const isActive = pathname === href
               return (
                 <li key={link.href}>
                   <Link
-                    href={link.href}
+                    href={href}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                       isActive
                         ? 'text-[#7C5CFF] bg-[#7C5CFF]/10'
@@ -71,19 +74,51 @@ export default function Navbar() {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-3">
-            <Link
-              href="/auth/login"
-              className="px-4 py-2 text-sm font-medium text-[#9BA3B7] hover:text-[#F5F6FA] transition-colors duration-200"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/booking"
-              className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white btn-primary-gradient transition-all duration-200 min-h-[44px]"
-            >
-              <Zap className="w-4 h-4" aria-hidden="true" />
-              Book Now
-            </Link>
+            {loading ? (
+              <div className="w-20 h-9 rounded-lg bg-[#1B2130] animate-pulse" />
+            ) : user ? (
+              <>
+                <Link
+                  href={user.role === 'admin' ? '/admin' : '/dashboard'}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-[#9BA3B7] hover:text-[#F5F6FA] hover:bg-[#1B2130] transition-all duration-200"
+                >
+                  <div className="w-7 h-7 rounded-md bg-[#7C5CFF]/20 flex items-center justify-center">
+                    <User className="w-4 h-4 text-[#7C5CFF]" />
+                  </div>
+                  {user.name.split(' ')[0]}
+                </Link>
+                <button
+                  onClick={logout}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-[#9BA3B7] hover:text-[#FF5C7A] hover:bg-[#FF5C7A]/10 transition-all duration-200"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </button>
+                <Link
+                  href="/booking"
+                  className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white btn-primary-gradient transition-all duration-200 min-h-[44px]"
+                >
+                  <Zap className="w-4 h-4" aria-hidden="true" />
+                  Book Now
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/auth/login"
+                  className="px-4 py-2 text-sm font-medium text-[#9BA3B7] hover:text-[#F5F6FA] transition-colors duration-200"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/booking"
+                  className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white btn-primary-gradient transition-all duration-200 min-h-[44px]"
+                >
+                  <Zap className="w-4 h-4" aria-hidden="true" />
+                  Book Now
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>

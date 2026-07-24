@@ -7,7 +7,11 @@ if (!process.env.MONGODB_URI) {
 const uri: string = process.env.MONGODB_URI;
 const dbName: string = process.env.MONGODB_DB || 'gars_db';
 
-const options: MongoClientOptions = {};
+const options: MongoClientOptions = {
+  tls: true,
+  tlsAllowInvalidCertificates: true,
+  serverSelectionTimeoutMS: 10000,
+};
 
 let client: MongoClient;
 let clientPromise: Promise<MongoClient>;

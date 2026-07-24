@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter, Space_Grotesk, JetBrains_Mono } from 'next/font/google'
+import { AuthProvider } from '@/lib/auth-context'
 import './globals.css'
 
 const inter = Inter({
@@ -70,7 +71,9 @@ export default function RootLayout({
         } as React.CSSProperties
       }
     >
-      <body className="antialiased bg-[#0B0E14] text-[#F5F6FA]">{children}</body>
+      <body className="antialiased bg-[#0B0E14] text-[#F5F6FA]">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   )
 }
