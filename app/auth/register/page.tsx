@@ -25,10 +25,37 @@ export default function RegisterPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError('')
+
+    if (!name.trim()) {
+      setError('Full name is required')
+      return
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address')
+      return
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
+    if (!/[A-Z]/.test(password)) {
+      setError('Password must contain at least one uppercase letter')
+      return
+    }
+    if (!/[a-z]/.test(password)) {
+      setError('Password must contain at least one lowercase letter')
+      return
+    }
+    if (!/[0-9]/.test(password)) {
+      setError('Password must contain at least one number')
+      return
+    }
     if (password !== confirmPassword) {
       setError('Passwords do not match')
       return
     }
+
     setLoading(true)
     try {
       const res = await fetch('/api/auth/register', {
@@ -153,6 +180,18 @@ export default function RegisterPage() {
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+              {[
+                { label: '6+ characters', ok: password.length >= 6 },
+                { label: 'Uppercase', ok: /[A-Z]/.test(password) },
+                { label: 'Lowercase', ok: /[a-z]/.test(password) },
+                { label: 'Number', ok: /[0-9]/.test(password) },
+              ].map(({ label, ok }) => (
+                <span key={label} className={ok ? 'text-[#33E6A0]' : 'text-[#9BA3B7]'}>
+                  {ok ? '✓' : '○'} {label}
+                </span>
+              ))}
             </div>
           </div>
 

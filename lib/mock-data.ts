@@ -240,6 +240,64 @@ export const mockUser: User = {
   createdAt: '2026-03-15T00:00:00Z',
 }
 
+export interface AdminUser extends User {
+  bookings: number
+  totalSpent: number
+}
+
+export const mockUsers: AdminUser[] = [
+  {
+    _id: 'u2',
+    name: 'Marcus Chen',
+    email: 'marcus.chen@email.com',
+    role: 'admin',
+    isVerified: true,
+    createdAt: '2025-01-12T00:00:00Z',
+    bookings: 24,
+    totalSpent: 890,
+  },
+  {
+    _id: 'u3',
+    name: 'Priya Nair',
+    email: 'priya.nair@email.com',
+    role: 'customer',
+    isVerified: true,
+    createdAt: '2025-03-04T00:00:00Z',
+    bookings: 11,
+    totalSpent: 312,
+  },
+  {
+    _id: 'u4',
+    name: 'Jordan Miles',
+    email: 'jordan.miles@email.com',
+    role: 'customer',
+    isVerified: true,
+    createdAt: '2025-04-18T00:00:00Z',
+    bookings: 7,
+    totalSpent: 196,
+  },
+  {
+    _id: 'u5',
+    name: 'Aya Tanaka',
+    email: 'aya.tanaka@email.com',
+    role: 'customer',
+    isVerified: false,
+    createdAt: '2025-06-30T00:00:00Z',
+    bookings: 3,
+    totalSpent: 68,
+  },
+  {
+    _id: 'u6',
+    name: 'Levi Okonkwo',
+    email: 'levi.okonkwo@email.com',
+    role: 'customer',
+    isVerified: false,
+    createdAt: '2026-07-19T00:00:00Z',
+    bookings: 0,
+    totalSpent: 0,
+  },
+]
+
 export const testimonials = [
   {
     id: 1,
