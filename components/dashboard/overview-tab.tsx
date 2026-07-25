@@ -2,7 +2,8 @@ import Link from 'next/link'
 import { Cpu, Calendar, Clock, DollarSign } from 'lucide-react'
 import StatCard from './stat-card'
 import BookingCard from './booking-card'
-import { mockBookings } from '@/lib/mock-data'
+// import { mockBookings } from '@/lib/mock-data'
+import type { Booking } from '@/lib/types'
 
 // How many upcoming bookings to preview here before the user has to
 // click "View all" and go to the full Upcoming tab.
@@ -11,22 +12,24 @@ const PREVIEW_COUNT = 2
 interface OverviewTabProps {
   // Lets the "View all" link jump straight to the Upcoming tab — the
   // active-tab state itself lives one level up, in dashboard-tabs.tsx.
+  bookings: Booking[]
+  onUpdateBooking: (bookingId: string, changes: Partial<Booking>) => void
   onViewAllUpcoming?: () => void
 }
 
-export default function OverviewTab({ onViewAllUpcoming }: OverviewTabProps) {
-  const totalBookings = mockBookings.length
+export default function OverviewTab({ onUpdateBooking,onViewAllUpcoming, bookings }: OverviewTabProps) {
+  const totalBookings = bookings.length
 
-  const upcomingBookings = mockBookings.filter(
+  const upcomingBookings = bookings.filter(
     (b) => b.status === 'pending' || b.status === 'confirmed'
   )
   const upcomingCount = upcomingBookings.length
 
-  const completedCount = mockBookings.filter((b) => b.status === 'completed').length
+  const completedCount = bookings.filter((b) => b.status === 'completed').length
 
   // "Total Spent" = money spent on sessions that already happened —
   // not advance payments for bookings that are still upcoming.
-  const totalSpent = mockBookings
+  const totalSpent = bookings
     .filter((b) => b.status === 'completed')
     .reduce((sum, b) => sum + b.totalPrice, 0)
 

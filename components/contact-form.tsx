@@ -184,7 +184,7 @@ export default function ContactForm() {
       <button
         type="submit"
         disabled={loading}
-        className="flex items-center justify-center gap-2 w-full px-6 py-3.5 rounded-xl text-sm font-bold text-white btn-primary-gradient transition-all duration-200 min-h-[48px] disabled:opacity-60 disabled:cursor-not-allowed"
+        className="flex items-center justify-center gap-2 w-full px-6 py-3.5 rounded-xl text-sm font-bold text-white btn-primary-gradient transition-all duration-200 min-h-12 disabled:opacity-60 disabled:cursor-not-allowed"
         aria-busy={loading}
       >
         {loading ? (

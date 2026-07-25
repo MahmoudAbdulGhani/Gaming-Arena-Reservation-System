@@ -115,13 +115,13 @@ export default function BookingConfirmation({ bookingData }: Props) {
         <div className="flex flex-col sm:flex-row gap-3">
           <Link
             href="/dashboard"
-            className="flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-white btn-primary-gradient transition-all duration-200 min-h-[44px]"
+            className="flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-white btn-primary-gradient transition-all duration-200 min-h-11"
           >
             <LayoutDashboard className="w-4 h-4" aria-hidden="true" />
             View My Bookings
           </Link>
           <button
-            className="flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-[#9BA3B7] bg-[#131824] border border-[#262D3D] hover:text-[#F5F6FA] hover:border-[#7C5CFF]/40 transition-all duration-200 min-h-[44px]"
+            className="flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-[#9BA3B7] bg-[#131824] border border-[#262D3D] hover:text-[#F5F6FA] hover:border-[#7C5CFF]/40 transition-all duration-200 min-h-11"
             aria-label="Download booking confirmation"
           >
             <Download className="w-4 h-4" aria-hidden="true" />

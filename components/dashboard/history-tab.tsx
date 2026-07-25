@@ -1,8 +1,15 @@
 import BookingCard from './booking-card'
-import { mockBookings } from '@/lib/mock-data'
+// import { mockBookings } from '@/lib/mock-data'
+import type { Booking } from '@/lib/types'
 
-export default function HistoryTab() {
-  const historyBookings = mockBookings.filter(
+interface HistoryTabProps {
+  bookings: Booking[]
+  onUpdateBooking: (bookingId: string, changes: Partial<Booking>) => void
+}
+
+
+export default function HistoryTab({ bookings, onUpdateBooking }: HistoryTabProps) {
+  const historyBookings = bookings.filter(
     (b) => b.status === 'completed' || b.status === 'cancelled'
   )
 
