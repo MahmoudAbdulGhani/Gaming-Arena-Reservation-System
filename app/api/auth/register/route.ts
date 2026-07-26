@@ -44,6 +44,7 @@ export async function POST(request: Request) {
       role: 'customer',
       phone: phone || '',
       isVerified: false,
+      loyaltyPoints: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     })

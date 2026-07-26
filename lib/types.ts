@@ -51,6 +51,7 @@ export interface User {
   role: UserRole
   phone?: string
   isVerified: boolean
+  loyaltyPoints: number
   createdAt: string
 }
 

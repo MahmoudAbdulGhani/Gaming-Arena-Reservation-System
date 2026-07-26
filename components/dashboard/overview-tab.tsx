@@ -2,9 +2,8 @@ import Link from 'next/link'
 import { Cpu, Calendar, Clock, Award } from 'lucide-react'
 import StatCard from './stat-card'
 import BookingCard from './booking-card'
-// import { mockBookings } from '@/lib/mock-data'
 import type { Booking } from '@/lib/types'
-import { isNoShow } from '@/lib/booking-policy'
+import { calculateLoyaltyPoints } from '@/lib/loyalty'
 
 // How many upcoming bookings to preview here before the user has to
 // click "View all" and go to the full Upcoming tab.
@@ -28,10 +27,7 @@ export default function OverviewTab({ onUpdateBooking,onViewAllUpcoming, booking
 
   const completedCount = bookings.filter((b) => b.status === 'completed').length
 
-  // "Total Spent" = money spent on sessions that already happened —
-  // not advance payments for bookings that are still upcoming.
-  const noShowCount = bookings.filter((b) => isNoShow(b)).length
-  const loyaltyPoints = Math.max(0, completedCount * 10 - noShowCount * 100)
+  const loyaltyPoints = calculateLoyaltyPoints(bookings)
 
   
 

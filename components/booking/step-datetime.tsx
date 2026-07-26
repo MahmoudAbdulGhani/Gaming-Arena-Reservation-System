@@ -221,10 +221,10 @@ export default function BookingStepDateTime({ bookingData, onComplete, onBack }:
               return (
                 <button
                   key={time}
-                  disabled={blocked}
-                  onClick={() => setSelectedTime(time)}
+                  disabled={disabled}
+                  onClick={() => handleTimeSelect(time)}
                   className={`shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 min-h-[44px] ${
-                    blocked
+                    disabled
                       ? 'bg-[#FF5C7A]/10 text-[#FF5C7A]/50 border border-[#FF5C7A]/20 cursor-not-allowed'
                       : isSelected
                       ? 'bg-[#7C5CFF] text-white glow-violet-sm'

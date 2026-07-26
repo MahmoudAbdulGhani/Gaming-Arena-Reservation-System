@@ -10,6 +10,7 @@ interface User {
   role: string
   phone?: string
   isVerified: boolean
+  loyaltyPoints: number
 }
 
 interface AuthContextType {
