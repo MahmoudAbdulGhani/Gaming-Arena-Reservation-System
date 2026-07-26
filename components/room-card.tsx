@@ -66,7 +66,7 @@ export default function RoomCard({ room, compact = false }: RoomCardProps) {
           className="object-cover transition-transform duration-300 group-hover:scale-105"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#131824] via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-t from-[#131824] via-transparent to-transparent" />
 
         {/* Status badge */}
         <div className="absolute top-3 left-3">
@@ -145,14 +145,14 @@ export default function RoomCard({ room, compact = false }: RoomCardProps) {
         <div className="flex items-center gap-2">
           <Link
             href={`/rooms/${room._id}`}
-            className="flex-1 text-center px-4 py-2.5 rounded-xl text-sm font-semibold text-[#9BA3B7] bg-[#1B2130] hover:bg-[#262D3D] hover:text-[#F5F6FA] border border-[#262D3D] transition-all duration-200 min-h-[44px] flex items-center justify-center"
+            className="flex-1 text-center px-4 py-2.5 rounded-xl text-sm font-semibold text-[#9BA3B7] bg-[#1B2130] hover:bg-[#262D3D] hover:text-[#F5F6FA] border border-[#262D3D] transition-all duration-200 min-h-11 flex items-center justify-center"
           >
             View Room
           </Link>
           {canBook ? (
             <BookLink
               href={`/booking?room=${room._id}`}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white btn-primary-gradient transition-all duration-200 min-h-[44px]"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white btn-primary-gradient transition-all duration-200 min-h-11"
             >
               <Zap className="w-3.5 h-3.5" aria-hidden="true" />
               Book
@@ -160,7 +160,7 @@ export default function RoomCard({ room, compact = false }: RoomCardProps) {
           ) : (
             <button
               disabled
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-[#9BA3B7] bg-[#1B2130] border border-[#262D3D] cursor-not-allowed opacity-60 min-h-[44px]"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-[#9BA3B7] bg-[#1B2130] border border-[#262D3D] cursor-not-allowed opacity-60 min-h-11"
               aria-disabled="true"
             >
               <Clock className="w-3.5 h-3.5" aria-hidden="true" />

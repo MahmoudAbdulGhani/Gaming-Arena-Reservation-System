@@ -106,7 +106,9 @@ export default function Navbar() {
                 </button>
                 <Link
                   href="/booking"
-                  className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white btn-primary-gradient transition-all duration-200 min-h-[44px] whitespace-nowrap"
+
+                  className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white btn-primary-gradient transition-all duration-200 min-h-11"
+
                 >
                   <Zap className="w-4 h-4" aria-hidden="true" />
                   Book Now
@@ -121,7 +123,7 @@ export default function Navbar() {
                   Sign In
                 </Link>
                 <Link
-                  href="/auth/login?redirect=%2Fbooking"
+                  href="/booking"
                   className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white btn-primary-gradient transition-all duration-200 min-h-[44px] whitespace-nowrap"
                 >
                   <Zap className="w-4 h-4" aria-hidden="true" />

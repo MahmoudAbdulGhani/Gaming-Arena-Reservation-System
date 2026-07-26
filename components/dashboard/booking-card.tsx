@@ -1,6 +1,9 @@
 import Image from "next/image";
 import { Calendar, Clock, DollarSign, Monitor, Gamepad2, Glasses, Users } from "lucide-react";
 import type { Booking, BookingStatus, RoomType } from "@/lib/types";
+import { checkBookingPolicy } from '@/lib/booking-policy'
+
+
 
 // Room type -> small icon + label shown under the room name.
 const typeLabels: Record<RoomType, string> = {
@@ -43,14 +46,18 @@ const statusConfig: Record<BookingStatus, { label: string; dot: string; pill: st
 
 interface BookingCardProps {
   booking: Booking;
+   onModify?: (booking: Booking) => void;
+  onCancel?: (booking: Booking) => void;
 }
 
-export default function BookingCard({ booking }: BookingCardProps) {
+export default function BookingCard({ booking, onModify, onCancel }: BookingCardProps) {
   const room = booking.room;
   const status = statusConfig[booking.status] ?? statusConfig.pending;
 
   // Modify/Cancel only make sense while a booking hasn't happened yet.
   const canManage = booking.status === "pending" || booking.status === "confirmed";
+  const modifyPolicy = checkBookingPolicy(booking, 'modify')
+  const cancelPolicy = checkBookingPolicy(booking, 'cancel')
 
   // bookingDate is a plain "YYYY-MM-DD" string. Appending a time keeps
   // Date() parsing it in local time instead of UTC, which avoids the
@@ -114,12 +121,18 @@ export default function BookingCard({ booking }: BookingCardProps) {
             <div className="flex items-center gap-3 mt-4">
               <button
                 type="button"
+                disabled={!modifyPolicy.allowed}
+                title={modifyPolicy.allowed ? undefined : modifyPolicy.reason}
+                onClick={() => onModify?.(booking)}
                 className="px-5 py-2 rounded-lg text-sm font-medium text-[#F5F6FA] border border-[#262D3D] hover:bg-[#1B2130] transition-colors duration-200"
               >
                 Modify
               </button>
               <button
                 type="button"
+                disabled={!cancelPolicy.allowed}
+                title={cancelPolicy.allowed ? undefined : cancelPolicy.reason}
+                onClick={() => onCancel?.(booking)}    
                 className="px-5 py-2 rounded-lg text-sm font-medium text-[#FF5C7A] border border-[#FF5C7A]/40 hover:bg-[#FF5C7A]/10 transition-colors duration-200"
               >
                 Cancel

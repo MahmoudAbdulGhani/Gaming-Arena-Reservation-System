@@ -40,14 +40,14 @@ export default function CTABanner() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <BookLink
                 href="/booking"
-                className="flex items-center gap-2 px-8 py-4 rounded-xl text-base font-bold text-white btn-primary-gradient glow-violet transition-all duration-200 min-h-[52px] w-full sm:w-auto"
+                className="flex items-center gap-2 px-8 py-4 rounded-xl text-base font-bold text-white btn-primary-gradient glow-violet transition-all duration-200 min-h-13 w-full sm:w-auto"
               >
                 <Zap className="w-5 h-5" aria-hidden="true" />
                 Reserve Your Room
               </BookLink>
               <Link
                 href="/auth/register"
-                className="px-8 py-4 rounded-xl text-base font-semibold text-[#F5F6FA] bg-transparent border border-[#262D3D] hover:border-[#7C5CFF]/50 hover:bg-[#1B2130] transition-all duration-200 min-h-[52px] w-full sm:w-auto"
+                className="px-8 py-4 rounded-xl text-base font-semibold text-[#F5F6FA] bg-transparent border border-[#262D3D] hover:border-[#7C5CFF]/50 hover:bg-[#1B2130] transition-all duration-200 min-h-13 w-full sm:w-auto"
               >
                 Create Free Account
               </Link>

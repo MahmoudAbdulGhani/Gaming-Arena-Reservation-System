@@ -6,17 +6,27 @@ import UpcomingTab from './upcoming-tab'
 import HistoryTab from './history-tab'
 import ProfileTab from './profile-tab'
 import { mockBookings } from '@/lib/mock-data'
+import type { Booking } from '@/lib/types'
 
 type TabId = 'overview' | 'upcoming' | 'history' | 'profile'
 
 export default function DashboardTabs() {
   const [activeTab, setActiveTab] = useState<TabId>('overview')
+  const [bookings, setBookings] = useState<Booking[]>(mockBookings)
 
-  const upcomingCount = mockBookings.filter(
+  function updateBooking(bookingId: string, changes: Partial<Booking>) {
+  setBookings((prevBookings) =>
+    prevBookings.map((booking) =>
+      booking._id === bookingId ? { ...booking, ...changes } : booking
+    )
+  )
+}
+
+  const upcomingCount = bookings.filter(
   (b) => b.status === 'pending' || b.status === 'confirmed'
 ).length
 
-const historyCount = mockBookings.filter(
+const historyCount = bookings.filter(
   (b) => b.status === 'completed' || b.status === 'cancelled'
 ).length
 
@@ -50,11 +60,14 @@ const tabs: { id: TabId; label: string; count?: number }[] = [
       ))}
     </div>
 
+    {/* {actiOverviewTabveTab === 'overview' && (
+      < onViewAllUpcoming={() => setActiveTab('upcoming')} />
+    )} */}
     {activeTab === 'overview' && (
-      <OverviewTab onViewAllUpcoming={() => setActiveTab('upcoming')} />
+        <OverviewTab bookings={bookings} onUpdateBooking={updateBooking} onViewAllUpcoming={() => setActiveTab('upcoming')} />
     )}
-    {activeTab === 'upcoming' && <UpcomingTab />}
-    {activeTab === 'history' && <HistoryTab />}
+    {activeTab === 'upcoming' && <UpcomingTab bookings={bookings} onUpdateBooking={updateBooking}/>}
+    {activeTab === 'history' && <HistoryTab bookings={bookings} onUpdateBooking={updateBooking} />}
     {activeTab === 'profile' && <ProfileTab />}
   </div>
 )

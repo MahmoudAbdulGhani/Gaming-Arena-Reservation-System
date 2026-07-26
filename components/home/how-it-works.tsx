@@ -49,7 +49,7 @@ export default function HowItWorks() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
           {/* Connector line (desktop) */}
           <div
-            className="hidden md:block absolute top-12 left-1/3 right-1/3 h-px bg-gradient-to-r from-transparent via-[#7C5CFF]/40 to-transparent"
+            className="hidden md:block absolute top-12 left-1/3 right-1/3 h-px bg-linear-to-r from-transparent via-[#7C5CFF]/40 to-transparent"
             aria-hidden="true"
           />
 
