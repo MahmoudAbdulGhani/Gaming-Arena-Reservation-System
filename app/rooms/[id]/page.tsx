@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import Navbar from '@/components/navbar'
 import Footer from '@/components/footer'
+import ReserveButton from '@/components/reserve-button'
 import { mockRooms, mockDevices } from '@/lib/mock-data'
 import { getRoomAvailability } from '@/lib/types'
 import {
@@ -11,7 +12,6 @@ import {
   Gamepad2,
   Glasses,
   Users,
-  Zap,
   ChevronLeft,
   Clock,
   CheckCircle2,
@@ -236,23 +236,7 @@ export default async function RoomDetailPage({ params }: Props) {
                 </div>
 
                 {/* CTA */}
-                {canBook ? (
-                  <Link
-                    href={`/booking?room=${room._id}`}
-                    className="flex items-center justify-center gap-2 w-full px-6 py-4 rounded-xl text-base font-bold text-white btn-primary-gradient glow-violet transition-all duration-200 min-h-[52px]"
-                  >
-                    <Zap className="w-5 h-5" aria-hidden="true" />
-                    Reserve Devices in This Room
-                  </Link>
-                ) : (
-                  <button
-                    disabled
-                    className="flex items-center justify-center gap-2 w-full px-6 py-4 rounded-xl text-base font-semibold text-[#9BA3B7] bg-[#1B2130] border border-[#262D3D] cursor-not-allowed opacity-60 min-h-[52px]"
-                    aria-disabled="true"
-                  >
-                    No Devices Available
-                  </button>
-                )}
+                <ReserveButton roomId={room._id} canBook={canBook} />
 
                 <p className="text-xs text-center text-[#9BA3B7] mt-3">
                   No cancellation fee up to 2 hours before session

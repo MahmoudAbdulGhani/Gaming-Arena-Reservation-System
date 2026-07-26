@@ -4,8 +4,16 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Monitor, Gamepad2, Glasses, Users, Cpu, Zap, Clock } from 'lucide-react'
 import type { Room } from '@/lib/types'
-import { getRoomAvailability, roomTypeLabels } from '@/lib/types'
+import { getRoomAvailability } from '@/lib/types'
 import { mockDevices } from '@/lib/mock-data'
+import BookLink from '@/components/book-link'
+
+const typeLabels: Record<string, string> = {
+  pc: 'PC',
+  console: 'Console',
+  vr: 'VR',
+  private: 'Private Room',
+}
 
 const typeIcons: Record<string, React.ReactNode> = {
   pc: <Monitor className="w-4 h-4" />,
@@ -74,7 +82,7 @@ export default function RoomCard({ room, compact = false }: RoomCardProps) {
         <div className="absolute top-3 right-3">
           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${typeColors[room.type]}`}>
             {typeIcons[room.type]}
-            {roomTypeLabels[room.type]}
+            {typeLabels[room.type]}
           </span>
         </div>
 
@@ -142,13 +150,13 @@ export default function RoomCard({ room, compact = false }: RoomCardProps) {
             View Room
           </Link>
           {canBook ? (
-            <Link
+            <BookLink
               href={`/booking?room=${room._id}`}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white btn-primary-gradient transition-all duration-200 min-h-[44px]"
             >
               <Zap className="w-3.5 h-3.5" aria-hidden="true" />
               Book
-            </Link>
+            </BookLink>
           ) : (
             <button
               disabled

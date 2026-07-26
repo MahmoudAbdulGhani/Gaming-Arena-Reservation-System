@@ -1,6 +1,9 @@
+'use client'
+
 import Link from 'next/link'
 import Image from 'next/image'
 import { Zap, ChevronRight, Star } from 'lucide-react'
+import BookLink from '@/components/book-link'
 
 export default function HeroSection() {
     return (
@@ -44,13 +47,13 @@ export default function HeroSection() {
 
                 {/* CTA buttons */}
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-                    <Link
+                    <BookLink
                         href="/booking"
                         className="flex items-center gap-2 px-8 py-4 rounded-xl text-base font-bold text-white btn-primary-gradient glow-violet transition-all duration-200 min-h-[52px] w-full sm:w-auto"
                     >
                         <Zap className="w-5 h-5" aria-hidden="true" />
                         Book Your Slot
-                    </Link>
+                    </BookLink>
                     <Link
                         href="/rooms"
                         className="flex items-center gap-2 px-8 py-4 rounded-xl text-base font-semibold text-[#F5F6FA] bg-[#1B2130] border border-[#262D3D] hover:border-[#7C5CFF]/50 hover:bg-[#262D3D] transition-all duration-200 min-h-[52px] w-full sm:w-auto"

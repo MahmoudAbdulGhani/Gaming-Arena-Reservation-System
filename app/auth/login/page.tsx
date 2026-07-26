@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Gamepad2, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 
@@ -12,6 +12,8 @@ const inputClass =
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectTo = searchParams.get('redirect')
   const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -37,9 +39,11 @@ export default function LoginPage() {
     try {
       const result = await login(email, password)
       if (result.requiresOtp) {
-        router.push(`/auth/verify-otp?token=${encodeURIComponent(result.verifyToken!)}`)
+        const otpParams = new URLSearchParams({ token: result.verifyToken! })
+        if (redirectTo) otpParams.set('redirect', redirectTo)
+        router.push(`/auth/verify-otp?${otpParams.toString()}`)
       } else {
-        router.push(result.role === 'admin' ? '/admin' : '/dashboard')
+        router.push(redirectTo || (result.role === 'admin' ? '/admin' : '/dashboard'))
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')

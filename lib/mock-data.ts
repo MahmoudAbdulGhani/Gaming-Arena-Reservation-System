@@ -331,10 +331,16 @@ export const timeSlots = [
   '20:00', '21:00', '22:00', '23:00',
 ]
 
-// Reserved time slots per device
-export const reservedDeviceSlots: Record<string, string[]> = {
-  d3: ['14:00', '15:00'],
-  d5: ['14:00', '15:00'],
-  d12: ['10:00', '11:00', '12:00', '13:00'],
-  d15: ['18:00'],
+export interface ReservedSlot {
+  start: string
+  end: string
+}
+
+// Reserved time ranges per device — each entry means the device is
+// booked from `start` (inclusive) to `end` (exclusive).
+export const reservedDeviceSlots: Record<string, ReservedSlot[]> = {
+  d3:  [{ start: '14:00', end: '16:00' }],
+  d5:  [{ start: '14:00', end: '16:00' }],
+  d12: [{ start: '10:00', end: '14:00' }],
+  d15: [{ start: '18:00', end: '19:00' }],
 }

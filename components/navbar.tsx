@@ -121,7 +121,7 @@ export default function Navbar() {
                   Sign In
                 </Link>
                 <Link
-                  href="/booking"
+                  href="/auth/login?redirect=%2Fbooking"
                   className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white btn-primary-gradient transition-all duration-200 min-h-[44px] whitespace-nowrap"
                 >
                   <Zap className="w-4 h-4" aria-hidden="true" />
@@ -195,7 +195,7 @@ export default function Navbar() {
                     Sign In
                   </Link>
                   <Link
-                    href="/booking"
+                    href="/auth/login?redirect=%2Fbooking"
                     onClick={() => setMobileOpen(false)}
                     className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-lg text-sm font-semibold text-white btn-primary-gradient transition-all duration-200"
                   >

@@ -12,6 +12,7 @@ function VerifyOtpForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get('token') || ''
+  const redirectTo = searchParams.get('redirect')
   const { verifyOtp, resendOtp } = useAuth()
 
   const [digits, setDigits] = useState(['', '', '', '', '', ''])
@@ -67,7 +68,7 @@ function VerifyOtpForm() {
     setLoading(true)
     try {
       const role = await verifyOtp(token, otp)
-      router.push(role === 'admin' ? '/admin' : '/dashboard')
+      router.push(redirectTo || (role === 'admin' ? '/admin' : '/dashboard'))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid OTP')
     } finally {
@@ -81,6 +82,7 @@ function VerifyOtpForm() {
     try {
       const newToken = await resendOtp(token)
       const params = new URLSearchParams({ token: newToken })
+      if (redirectTo) params.set('redirect', redirectTo)
       router.replace(`/auth/verify-otp?${params.toString()}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to resend')

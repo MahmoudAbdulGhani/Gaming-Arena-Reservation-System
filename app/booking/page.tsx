@@ -9,6 +9,7 @@ import BookingStepDevices from '@/components/booking/step-devices'
 import BookingStepDateTime from '@/components/booking/step-datetime'
 import BookingStepConfirm from '@/components/booking/step-confirm'
 import BookingConfirmation from '@/components/booking/confirmation'
+import StripeProvider from '@/components/stripe-provider'
 import { CheckCircle2 } from 'lucide-react'
 import type { Room, Device } from '@/lib/types'
 import { mockRooms } from '@/lib/mock-data'
@@ -135,11 +136,13 @@ function BookingContent() {
           />
         )}
         {currentStep === 4 && (
-          <BookingStepConfirm
-            bookingData={bookingData}
-            onComplete={handleBookingComplete}
-            onBack={() => setCurrentStep(3)}
-          />
+          <StripeProvider>
+            <BookingStepConfirm
+              bookingData={bookingData}
+              onComplete={handleBookingComplete}
+              onBack={() => setCurrentStep(3)}
+            />
+          </StripeProvider>
         )}
         
       </div>
