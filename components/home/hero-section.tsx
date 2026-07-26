@@ -42,7 +42,7 @@ export default function HeroSection() {
                 </h1>
 
                 <p className="max-w-2xl mx-auto text-lg sm:text-xl text-[#9BA3B7] leading-relaxed mb-10 text-pretty">
-                    Book premium gaming rooms — high-end PCs, consoles, VR rigs, and private rooms. Real-time availability, instant confirmation.
+                    Book premium gaming rooms - high end PCs, consoles, VR rigs, and private rooms. Real-time availability, instant confirmation.
                 </p>
 
                 {/* CTA buttons */}

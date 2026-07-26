@@ -5,7 +5,6 @@ import ContactForm from '@/components/contact-form'
 import { MapPin, Phone, Mail, Clock } from 'lucide-react'
 
 export const metadata: Metadata = {
-  title: 'Contact Us',
   description: 'Get in touch with GameZone Arena. We are here to help with bookings, events, and general inquiries.',
 }
 

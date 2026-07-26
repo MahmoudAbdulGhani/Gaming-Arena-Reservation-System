@@ -25,7 +25,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: 'GameZone Arena — Book Your Gaming Room',
+    default: 'GameZone Arena',
     template: '%s | GameZone Arena',
   },
   description:

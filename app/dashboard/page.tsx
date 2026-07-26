@@ -6,7 +6,6 @@ import DashboardTabs from '@/components/dashboard/dashboard-tabs'
 import { mockUser } from '@/lib/mock-data'
 
 export const metadata: Metadata = {
-  title: 'Dashboard',
   description: 'View your bookings, spending, and profile at GameZone Arena.',
 }
 

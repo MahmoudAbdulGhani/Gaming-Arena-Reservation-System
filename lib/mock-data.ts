@@ -304,7 +304,7 @@ export const testimonials = [
     name: 'Marcus R.',
     role: 'Esports Player',
     content:
-      "The Alpha PC Lab is insane — RTX 4090 at 240Hz makes my aim feel like a superpower. Best arena I've been to in the city.",
+      "The Alpha PC Lab is insane - RTX 4090 at 240Hz makes my aim feel like a superpower. Best arena I've been to in the city.",
     rating: 5,
   },
   {

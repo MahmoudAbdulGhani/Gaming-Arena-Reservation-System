@@ -9,9 +9,9 @@ import Testimonials from '@/components/home/testimonials'
 import CTABanner from '@/components/home/cta-banner'
 
 export const metadata: Metadata = {
-  title: 'GameZone Arena — Book Your Gaming Room',
+  title: 'GameZone Arena',
   description:
-    'Reserve premium gaming rooms — PCs, consoles, VR rigs, and private rooms. Real-time availability, instant booking, and seamless online payment.',
+    'Reserve premium gaming rooms - PCs, consoles, VR rigs, and private rooms. Real-time availability, instant booking, and seamless online payment.',
 }
 
 export default function HomePage() {

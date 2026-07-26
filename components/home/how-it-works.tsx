@@ -6,21 +6,21 @@ const steps = [
     icon: Search,
     title: 'Browse & Choose',
     description:
-      'Explore our lineup of premium gaming rooms — PCs, consoles, VR rigs, and private rooms. Filter by type, price, and availability.',
+      'Explore our lineup of premium gaming rooms - PCs, consoles, VR rigs, and private rooms. Filter by type, price, and availability.',
   },
   {
     step: '02',
     icon: CalendarCheck,
     title: 'Pick Your Slot',
     description:
-      'Select your preferred date and time from our live availability calendar. See exactly which slots are open in real time — no guessing.',
+      'Select your preferred date and time from our live availability calendar. See exactly which slots are open in real time - no guessing.',
   },
   {
     step: '03',
     icon: Gamepad2,
     title: 'Play & Enjoy',
     description:
-      'Complete your booking with secure online payment. Receive instant confirmation and show up ready to play — we handle the rest.',
+      'Complete your booking with secure online payment. Receive instant confirmation and show up ready to play - we handle the rest.',
   },
 ]
 
