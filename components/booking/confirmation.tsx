@@ -1,6 +1,9 @@
+'use client'
+
+import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { CheckCircle2, Calendar, Clock, Gamepad2, Download, LayoutDashboard, Cpu } from 'lucide-react'
+import { CheckCircle2, Clock, Calendar, Gamepad2, Download, LayoutDashboard, Cpu, Banknote, AlertCircle } from 'lucide-react'
 import type { BookingData } from '@/app/booking/page'
 import { roomTypeLabels } from '@/lib/types'
 
@@ -9,29 +12,58 @@ interface Props {
 }
 
 export default function BookingConfirmation({ bookingData }: Props) {
-  const { room, devices, date, startTime, durationHours, totalPrice } = bookingData
+  const { room, devices, date, startTime, durationHours, totalPrice, paymentMethod } = bookingData
+
+  const [bookingCode] = useState(() =>
+    `GZ-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+  )
+
   if (!room) return null
 
   const endHour = parseInt(startTime.split(':')[0]) + durationHours
   const endTime = `${String(endHour).padStart(2, '0')}:00`
-  const bookingCode = `GZ-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+
+  const isCash = paymentMethod === 'cash'
 
   return (
     <div className="flex items-center justify-center py-16 px-4">
       <div className="w-full max-w-lg text-center">
-        {/* Success icon */}
+        {/* Status icon */}
         <div className="flex items-center justify-center mb-6">
-          <div className="w-20 h-20 rounded-full bg-[#33E6A0]/10 border-2 border-[#33E6A0]/30 flex items-center justify-center">
-            <CheckCircle2 className="w-10 h-10 text-[#33E6A0]" aria-hidden="true" />
-          </div>
+          {isCash ? (
+            <div className="w-20 h-20 rounded-full bg-[#FFB347]/10 border-2 border-[#FFB347]/30 flex items-center justify-center">
+              <Clock className="w-10 h-10 text-[#FFB347]" aria-hidden="true" />
+            </div>
+          ) : (
+            <div className="w-20 h-20 rounded-full bg-[#33E6A0]/10 border-2 border-[#33E6A0]/30 flex items-center justify-center">
+              <CheckCircle2 className="w-10 h-10 text-[#33E6A0]" aria-hidden="true" />
+            </div>
+          )}
         </div>
 
-        <h2 className="text-3xl font-black text-[#F5F6FA] mb-2" style={{ fontFamily: 'var(--font-display)' }}>
-          Booking Confirmed!
-        </h2>
-        <p className="text-[#9BA3B7] mb-8">
-          Your devices have been reserved. See you at the arena!
-        </p>
+        {isCash ? (
+          <>
+            <h2 className="text-3xl font-black text-[#F5F6FA] mb-2" style={{ fontFamily: 'var(--font-display)' }}>
+              Booking Pending
+            </h2>
+            <p className="text-[#9BA3B7] mb-4">
+              Your reservation is saved. Pay at the front desk to confirm.
+            </p>
+            <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#FFB347]/10 border border-[#FFB347]/20 mb-8">
+              <AlertCircle className="w-4 h-4 text-[#FFB347]" />
+              <span className="text-sm font-semibold text-[#FFB347]">Pending Payment Approval</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <h2 className="text-3xl font-black text-[#F5F6FA] mb-2" style={{ fontFamily: 'var(--font-display)' }}>
+              Booking Confirmed!
+            </h2>
+            <p className="text-[#9BA3B7] mb-8">
+              Your devices have been reserved. See you at the arena!
+            </p>
+          </>
+        )}
 
         {/* Booking code */}
         <div className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-[#7C5CFF]/10 border border-[#7C5CFF]/20 mb-8">
@@ -103,11 +135,21 @@ export default function BookingConfirmation({ bookingData }: Props) {
               <dd className="text-sm text-[#F5F6FA]">GameZone Arena, Main Floor</dd>
             </div>
             <div className="border-t border-[#262D3D] pt-3 flex items-center justify-between">
-              <dt className="text-sm text-[#9BA3B7]">Amount Paid</dt>
-              <dd className="text-xl font-black text-[#33E6A0]" style={{ fontFamily: 'var(--font-mono)' }}>
+              <dt className="text-sm text-[#9BA3B7]">
+                {isCash ? 'Amount Due' : 'Amount Paid'}
+              </dt>
+              <dd className={`text-xl font-black ${isCash ? 'text-[#FFB347]' : 'text-[#33E6A0]'}`} style={{ fontFamily: 'var(--font-mono)' }}>
                 ${totalPrice}
               </dd>
             </div>
+            {isCash && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-[#FFB347]/5 border border-[#FFB347]/15">
+                <Banknote className="w-4 h-4 text-[#FFB347] shrink-0" />
+                <span className="text-xs text-[#FFB347]">
+                  Pay cash at the front desk. Your booking will be confirmed once payment is received.
+                </span>
+              </div>
+            )}
           </dl>
         </div>
 

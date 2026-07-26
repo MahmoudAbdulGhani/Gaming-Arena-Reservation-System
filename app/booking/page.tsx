@@ -28,6 +28,7 @@ export interface BookingData {
   startTime: string
   durationHours: number
   totalPrice: number
+  paymentMethod: 'card' | 'cash'
 }
 
 function BookingContent() {
@@ -46,6 +47,7 @@ function BookingContent() {
     startTime: '',
     durationHours: 1,
     totalPrice: 0,
+    paymentMethod: 'card',
   })
 
   const handleStepComplete = (data: Partial<BookingData>) => {
@@ -53,7 +55,8 @@ function BookingContent() {
     setCurrentStep((prev) => prev + 1)
   }
 
-  const handleBookingComplete = () => {
+  const handleBookingComplete = (data: Partial<BookingData>) => {
+    setBookingData((prev) => ({ ...prev, ...data }))
     setIsCompleted(true)
   }
 

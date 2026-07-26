@@ -2,14 +2,14 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { ChevronLeft, Lock, AlertCircle, Cpu } from 'lucide-react'
+import { ChevronLeft, Lock, AlertCircle, CreditCard, Banknote, Clock } from 'lucide-react'
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import type { BookingData } from '@/app/booking/page'
 import { roomTypeLabels } from '@/lib/types'
 
 interface Props {
   bookingData: BookingData
-  onComplete: () => void
+  onComplete: (data: Partial<BookingData>) => void
   onBack: () => void
 }
 
@@ -34,22 +34,28 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
   const stripe = useStripe()
   const elements = useElements()
 
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash'>(bookingData.paymentMethod)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [paymentError, setPaymentError] = useState('')
   const [cardComplete, setCardComplete] = useState(false)
 
   const handlePay = async () => {
-    if (!stripe || !elements) return
     if (!agreedToTerms) { setPaymentError('You must agree to the terms'); return }
-
-    const cardElement = elements.getElement(CardElement)
-    if (!cardElement) return
-
     setPaymentError('')
     setIsProcessing(true)
 
     try {
+      if (paymentMethod === 'cash') {
+        await new Promise((r) => setTimeout(r, 500))
+        onComplete({ paymentMethod: 'cash' })
+        return
+      }
+
+      if (!stripe || !elements) return
+      const cardElement = elements.getElement(CardElement)
+      if (!cardElement) return
+
       const amountInCents = bookingData.totalPrice * 100
 
       const res = await fetch('/api/stripe/create-payment-intent', {
@@ -80,7 +86,7 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
 
       if (stripeError) throw new Error(stripeError.message)
 
-      onComplete()
+      onComplete({ paymentMethod: 'card' })
     } catch (err) {
       setPaymentError(err instanceof Error ? err.message : 'Payment failed')
     } finally {
@@ -93,6 +99,9 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
   const { room, devices, date, startTime, durationHours, totalPrice } = bookingData
   const endHour = parseInt(startTime.split(':')[0]) + durationHours
   const endTime = `${String(endHour).padStart(2, '0')}:00`
+
+  const isCard = paymentMethod === 'card'
+  const canSubmit = agreedToTerms && (isCard ? !!stripe && cardComplete : true)
 
   return (
     <div>
@@ -124,7 +133,7 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
           {devices && devices.length > 0 && (
             <div className="mb-4 p-3 rounded-xl bg-[#1B2130] border border-[#262D3D]">
               <div className="flex items-center gap-2 mb-2">
-                <Cpu className="w-3.5 h-3.5 text-[#7C5CFF]" aria-hidden="true" />
+                <CreditCard className="w-3.5 h-3.5 text-[#7C5CFF]" aria-hidden="true" />
                 <span className="text-xs font-semibold text-[#F5F6FA]">Reserved Devices ({devices.length})</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -165,28 +174,75 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
           </dl>
         </div>
 
-        {/* Stripe payment form */}
+        {/* Payment form */}
         <div className="p-6 rounded-2xl bg-[#131824] border border-[#262D3D]">
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-5">
             <Lock className="w-4 h-4 text-[#7C5CFF]" aria-hidden="true" />
             <h3 className="text-sm font-semibold text-[#F5F6FA]" style={{ fontFamily: 'var(--font-display)' }}>
-              Payment Details
+              Payment Method
             </h3>
-            <div className="ml-auto flex items-center gap-1 text-xs text-[#9BA3B7]">
-              <Lock className="w-3 h-3" aria-hidden="true" />
-              Powered by Stripe
-            </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-[#1B2130] border border-[#262D3D] mb-4" style={{ minHeight: '44px' }}>
-            <label className="block text-xs text-[#9BA3B7] mb-3">Card Details</label>
-            <div style={{ minHeight: '24px' }}>
-              <CardElement
-                options={cardElementStyle}
-                onChange={(e) => setCardComplete(e.complete)}
-              />
-            </div>
+          {/* Method toggle */}
+          <div className="grid grid-cols-2 gap-2 mb-5" role="radiogroup" aria-label="Payment method">
+            <button
+              onClick={() => { setPaymentMethod('card'); setPaymentError('') }}
+              className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 border ${
+                isCard
+                  ? 'bg-[#7C5CFF]/15 border-[#7C5CFF] text-[#7C5CFF]'
+                  : 'bg-[#1B2130] border-[#262D3D] text-[#9BA3B7] hover:border-[#7C5CFF]/40 hover:text-[#F5F6FA]'
+              }`}
+              role="radio"
+              aria-checked={isCard}
+            >
+              <CreditCard className="w-4 h-4" />
+              Card
+            </button>
+            <button
+              onClick={() => { setPaymentMethod('cash'); setPaymentError(''); setCardComplete(false) }}
+              className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 border ${
+                !isCard
+                  ? 'bg-[#33E6A0]/15 border-[#33E6A0] text-[#33E6A0]'
+                  : 'bg-[#1B2130] border-[#262D3D] text-[#9BA3B7] hover:border-[#33E6A0]/40 hover:text-[#F5F6FA]'
+              }`}
+              role="radio"
+              aria-checked={!isCard}
+            >
+              <Banknote className="w-4 h-4" />
+              Cash
+            </button>
           </div>
+
+          {/* Card form (Stripe) */}
+          {isCard && (
+            <div className="p-4 rounded-xl bg-[#1B2130] border border-[#262D3D] mb-4" style={{ minHeight: '44px' }}>
+              <label className="block text-xs text-[#9BA3B7] mb-3">Card Details</label>
+              <div style={{ minHeight: '24px' }}>
+                <CardElement
+                  options={cardElementStyle}
+                  onChange={(e) => setCardComplete(e.complete)}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Cash notice */}
+          {!isCard && (
+            <div className="p-4 rounded-xl bg-[#33E6A0]/5 border border-[#33E6A0]/15 mb-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Banknote className="w-4 h-4 text-[#33E6A0] shrink-0" />
+                <span className="text-sm font-semibold text-[#33E6A0]">Pay at the Arena</span>
+              </div>
+              <p className="text-xs text-[#9BA3B7] leading-relaxed">
+                Your booking will be <span className="text-[#FFB347] font-semibold">pending</span> until
+                an admin confirms your cash payment. Arrive at the front desk to pay and finalize.
+              </p>
+              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-[#131824]">
+                <Clock className="w-3.5 h-3.5 text-[#FFB347] shrink-0" />
+                <span className="text-[10px] text-[#FFB347]">Pending approval after payment at venue</span>
+              </div>
+            </div>
+          )}
 
           {paymentError && (
             <div className="p-3 rounded-xl bg-[#FF5C7A]/10 border border-[#FF5C7A]/20 mb-4">
@@ -212,12 +268,14 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
             </span>
           </label>
 
-          <div className="p-3 rounded-xl bg-[#7C5CFF]/5 border border-[#7C5CFF]/10">
-            <p className="text-[10px] text-[#9BA3B7] leading-relaxed">
-              Test mode — use card <span style={{ fontFamily: 'var(--font-mono)' }}>4242 4242 4242 4242</span>,
-              any future date, any CVC.
-            </p>
-          </div>
+          {isCard && (
+            <div className="p-3 rounded-xl bg-[#7C5CFF]/5 border border-[#7C5CFF]/10">
+              <p className="text-[10px] text-[#9BA3B7] leading-relaxed">
+                Test mode — use card <span style={{ fontFamily: 'var(--font-mono)' }}>4242 4242 4242 4242</span>,
+                any future date, any CVC.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -233,19 +291,24 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
         </button>
         <button
           onClick={handlePay}
-          disabled={isProcessing || !stripe || !cardComplete || !agreedToTerms}
+          disabled={isProcessing || !canSubmit}
           className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white btn-primary-gradient glow-violet transition-all duration-200 min-h-[44px] disabled:opacity-70"
           aria-busy={isProcessing}
         >
           {isProcessing ? (
             <>
               <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" aria-hidden="true" />
-              Processing Payment...
+              {isCard ? 'Processing Payment...' : 'Reserving...'}
             </>
-          ) : (
+          ) : isCard ? (
             <>
               <Lock className="w-4 h-4" aria-hidden="true" />
               Pay ${totalPrice} &mdash; Confirm Booking
+            </>
+          ) : (
+            <>
+              <Banknote className="w-4 h-4" aria-hidden="true" />
+              Reserve &mdash; Pay ${totalPrice} Later
             </>
           )}
         </button>
