@@ -1,9 +1,10 @@
 import Link from 'next/link'
-import { Cpu, Calendar, Clock, DollarSign } from 'lucide-react'
+import { Cpu, Calendar, Clock, Award } from 'lucide-react'
 import StatCard from './stat-card'
 import BookingCard from './booking-card'
 // import { mockBookings } from '@/lib/mock-data'
 import type { Booking } from '@/lib/types'
+import { isNoShow } from '@/lib/booking-policy'
 
 // How many upcoming bookings to preview here before the user has to
 // click "View all" and go to the full Upcoming tab.
@@ -26,12 +27,12 @@ export default function OverviewTab({ onUpdateBooking,onViewAllUpcoming, booking
   const upcomingCount = upcomingBookings.length
 
   const completedCount = bookings.filter((b) => b.status === 'completed').length
+  const noShowCount = bookings.filter((b) => isNoShow(b)).length
 
   // "Total Spent" = money spent on sessions that already happened —
   // not advance payments for bookings that are still upcoming.
-  const totalSpent = bookings
-    .filter((b) => b.status === 'completed')
-    .reduce((sum, b) => sum + b.totalPrice, 0)
+  // Every completed session earns the customer 10 loyalty points.
+  const loyaltyPoints = Math.max(0, completedCount * 10 - noShowCount * 100)
 
   return (
     <div>
@@ -55,11 +56,11 @@ export default function OverviewTab({ onUpdateBooking,onViewAllUpcoming, booking
           label="Completed"
         />
         <StatCard
-          icon={<DollarSign className="w-6 h-6" aria-hidden="true" />}
-          iconColorClass="bg-[#4C6FFF]/15 text-[#4C6FFF]"
-          value={`$${totalSpent}`}
-          label="Total Spent"
-        />
+            icon={<Award className="w-6 h-6" aria-hidden="true" />}
+            iconColorClass="bg-[#4C6FFF]/15 text-[#4C6FFF]"
+            value={loyaltyPoints}
+            label="Loyalty Points"
+/>
       </div>
 
       {/* Upcoming Sessions preview */}

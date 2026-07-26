@@ -69,12 +69,12 @@ function BookingContent() {
             <ol className="flex items-center justify-between relative">
               {/* Background line */}
               <div
-                className="absolute left-0 right-0 top-5 h-px bg-[#262D3D] mx-10"
+                className="absolute left-0 right-0 top-5 h-px bg-[#262D3D] mx-6 sm:mx-10"
                 aria-hidden="true"
               />
               {/* Progress line */}
               <div
-                className="absolute left-0 top-5 h-px bg-[#7C5CFF] mx-10 transition-all duration-500"
+                className="absolute left-0 top-5 h-px bg-[#7C5CFF] mx-6 sm:mx-10 transition-all duration-500"
                 style={{ width: `${((currentStep - 1) / (steps.length - 1)) * (100 - 8)}%` }}
                 aria-hidden="true"
               />
@@ -141,6 +141,7 @@ function BookingContent() {
             onBack={() => setCurrentStep(3)}
           />
         )}
+        
       </div>
     </>
   )

@@ -22,6 +22,17 @@ export default function LoginPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError('')
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address')
+      return
+    }
+    if (!password) {
+      setError('Password is required')
+      return
+    }
+
     setLoading(true)
     try {
       const result = await login(email, password)

@@ -46,3 +46,10 @@ export function hasSlotConflict(
     return candidateStartTime < other.endTime && other.startTime < candidateEndTime
   })
 }
+
+export function isNoShow(booking: Booking): boolean {
+  const startsAt = new Date(`${booking.bookingDate}T${booking.startTime}:00`)
+  const isStillUpcomingStatus = booking.status === 'pending' || booking.status === 'confirmed'
+
+  return isStillUpcomingStatus && startsAt.getTime() < Date.now()
+}

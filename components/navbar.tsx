@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { Gamepad2, Zap, LogOut, User } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { Gamepad2, Zap, LogOut, User, Menu, X } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 
 const navLinks = [
@@ -18,6 +18,7 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
   const { user, loading, logout } = useAuth()
 
   useEffect(() => {
@@ -58,7 +59,7 @@ export default function Navbar() {
                 <li key={link.href}>
                   <Link
                     href={href}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                       isActive
                         ? 'text-[#7C5CFF] bg-[#7C5CFF]/10'
                         : 'text-[#9BA3B7] hover:text-[#F5F6FA] hover:bg-[#1B2130]'
@@ -72,6 +73,15 @@ export default function Navbar() {
             })}
           </ul>
 
+          {/* Mobile hamburger */}
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="md:hidden p-2 rounded-lg text-[#9BA3B7] hover:text-[#F5F6FA] hover:bg-[#1B2130] transition-all duration-200 cursor-pointer border-none bg-transparent"
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+          >
+            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-3">
             {loading ? (
@@ -80,7 +90,7 @@ export default function Navbar() {
               <>
                 <Link
                   href={user.role === 'admin' ? '/admin' : '/dashboard'}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-[#9BA3B7] hover:text-[#F5F6FA] hover:bg-[#1B2130] transition-all duration-200"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-[#9BA3B7] hover:text-[#F5F6FA] hover:bg-[#1B2130] transition-all duration-200 whitespace-nowrap"
                 >
                   <div className="w-7 h-7 rounded-md bg-[#7C5CFF]/20 flex items-center justify-center">
                     <User className="w-4 h-4 text-[#7C5CFF]" />
@@ -88,8 +98,8 @@ export default function Navbar() {
                   {user.name.split(' ')[0]}
                 </Link>
                 <button
-                  onClick={logout}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-[#9BA3B7] hover:text-[#FF5C7A] hover:bg-[#FF5C7A]/10 transition-all duration-200"
+                  onClick={() => { logout(); router.push('/') }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-[#9BA3B7] hover:text-[#FF5C7A] hover:bg-[#FF5C7A]/10 transition-all duration-200 whitespace-nowrap"
                 >
                   <LogOut className="w-4 h-4" />
                   Logout
@@ -106,7 +116,7 @@ export default function Navbar() {
               <>
                 <Link
                   href="/auth/login"
-                  className="px-4 py-2 text-sm font-medium text-[#9BA3B7] hover:text-[#F5F6FA] transition-colors duration-200"
+                  className="px-4 py-2 text-sm font-medium text-[#9BA3B7] hover:text-[#F5F6FA] transition-colors duration-200 whitespace-nowrap"
                 >
                   Sign In
                 </Link>
@@ -121,6 +131,82 @@ export default function Navbar() {
             )}
           </div>
         </div>
+
+        {/* Mobile menu panel */}
+        {mobileOpen && (
+          <div className="md:hidden border-t border-[#262D3D] bg-[#0B0E14]/95 backdrop-blur-md">
+            <div className="px-4 py-4 space-y-2">
+              {navLinks.map((link) => {
+                const href = link.label === 'Dashboard' && user?.role === 'admin' ? '/admin' : link.href
+                const isActive = pathname === href
+                return (
+                  <Link
+                    key={link.href}
+                    href={href}
+                    onClick={() => setMobileOpen(false)}
+                    className={`block px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      isActive
+                        ? 'text-[#7C5CFF] bg-[#7C5CFF]/10'
+                        : 'text-[#9BA3B7] hover:text-[#F5F6FA] hover:bg-[#1B2130]'
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                )
+              })}
+              <hr className="border-[#262D3D] my-2" />
+              {loading ? (
+                <div className="h-9 rounded-lg bg-[#1B2130] animate-pulse" />
+              ) : user ? (
+                <>
+                  <Link
+                    href={user.role === 'admin' ? '/admin' : '/dashboard'}
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-[#9BA3B7] hover:text-[#F5F6FA] hover:bg-[#1B2130] transition-all duration-200"
+                  >
+                    <div className="w-7 h-7 rounded-md bg-[#7C5CFF]/20 flex items-center justify-center">
+                      <User className="w-4 h-4 text-[#7C5CFF]" />
+                    </div>
+                    {user.name.split(' ')[0]}
+                  </Link>
+                  <button
+                    onClick={() => { setMobileOpen(false); logout(); router.push('/') }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-[#9BA3B7] hover:text-[#FF5C7A] hover:bg-[#FF5C7A]/10 transition-all duration-200 cursor-pointer border-none bg-transparent"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </button>
+                  <Link
+                    href="/booking"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-lg text-sm font-semibold text-white btn-primary-gradient transition-all duration-200"
+                  >
+                    <Zap className="w-4 h-4" />
+                    Book Now
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/auth/login"
+                    onClick={() => setMobileOpen(false)}
+                    className="block px-4 py-2.5 rounded-lg text-sm font-medium text-[#9BA3B7] hover:text-[#F5F6FA] hover:bg-[#1B2130] transition-all duration-200"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    href="/booking"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-lg text-sm font-semibold text-white btn-primary-gradient transition-all duration-200"
+                  >
+                    <Zap className="w-4 h-4" />
+                    Book Now
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </nav>
     </header>
   )
