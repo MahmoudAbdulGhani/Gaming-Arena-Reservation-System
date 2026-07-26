@@ -13,25 +13,13 @@ interface Props {
 }
 
 export default function BookingStepDevices({ bookingData, onBack, onComplete }: Props) {
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const { room } = bookingData
   if (!room) return null
 
   const roomDevices = mockDevices.filter((d) => d.roomId === room._id)
   const availableDevices = roomDevices.filter((d) => d.status === 'available')
-
-  const toggle = (deviceId: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(deviceId)) {
-        next.delete(deviceId)
-      } else {
-        next.add(deviceId)
-      }
-      return next
-    })
-  }
 
   const deviceStatusConfig = {
     available: {
@@ -60,8 +48,7 @@ export default function BookingStepDevices({ bookingData, onBack, onComplete }: 
     },
   }
 
-  const selectedDevices = roomDevices.filter((d) => selectedIds.has(d._id))
-  const totalPrice = selectedDevices.length * room.pricePerHour
+  const selectedDevice = selectedId ? roomDevices.find((d) => d._id === selectedId) ?? null : null
 
   return (
     <div>
@@ -70,8 +57,8 @@ export default function BookingStepDevices({ bookingData, onBack, onComplete }: 
           Select Devices
         </h2>
         <p className="text-[#9BA3B7]">
-          Pick the available devices you want to reserve in{' '}
-          <span className="text-[#F5F6FA] font-medium">{room.name}</span>. Only available devices can be selected.
+          Pick an available device to reserve in{' '}
+          <span className="text-[#F5F6FA] font-medium">{room.name}</span>. One device per reservation.
         </p>
       </div>
 
@@ -92,19 +79,20 @@ export default function BookingStepDevices({ bookingData, onBack, onComplete }: 
       {/* Devices grid */}
       <div
         className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6"
-        role="group"
-        aria-label="Select devices to reserve"
+        role="radiogroup"
+        aria-label="Select a device to reserve"
       >
         {roomDevices.map((device) => {
           const cfg = deviceStatusConfig[device.status]
-          const isSelected = selectedIds.has(device._id)
+          const isSelected = selectedId === device._id
 
           return (
             <button
               key={device._id}
-              onClick={() => !cfg.disabled && toggle(device._id)}
+              onClick={() => { if (!cfg.disabled) setSelectedId(isSelected ? null : device._id) }}
               disabled={cfg.disabled}
-              aria-pressed={isSelected}
+              role="radio"
+              aria-checked={isSelected}
               aria-disabled={cfg.disabled}
               className={`relative text-left p-4 rounded-xl border transition-all duration-200 cursor-pointer ${
                 cfg.disabled
@@ -114,7 +102,6 @@ export default function BookingStepDevices({ bookingData, onBack, onComplete }: 
                   : cfg.cardBg
               }`}
             >
-              {/* Selected checkmark */}
               {isSelected && !cfg.disabled && (
                 <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-[#7C5CFF] flex items-center justify-center">
                   <CheckCircle2 className="w-4 h-4 text-white" aria-hidden="true" />
@@ -149,18 +136,18 @@ export default function BookingStepDevices({ bookingData, onBack, onComplete }: 
       </div>
 
       {/* Selection summary */}
-      {selectedIds.size > 0 && (
+      {selectedDevice && (
         <div className="p-4 rounded-xl bg-[#1B2130] border border-[#7C5CFF]/30 mb-6">
           <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-[#9BA3B7]">Selected devices</span>
+            <span className="text-[#9BA3B7]">Selected device</span>
             <span className="text-[#F5F6FA] font-semibold" style={{ fontFamily: 'var(--font-mono)' }}>
-              {selectedIds.size} device{selectedIds.size !== 1 ? 's' : ''}
+              {selectedDevice.deviceLabel}
             </span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-[#9BA3B7]">Price per hour (total)</span>
+            <span className="text-[#9BA3B7]">Price per hour</span>
             <span className="text-[#7C5CFF] font-bold text-lg" style={{ fontFamily: 'var(--font-mono)' }}>
-              ${totalPrice}
+              ${room.pricePerHour}/hr
             </span>
           </div>
           <p className="text-xs text-[#9BA3B7] mt-2">
@@ -179,12 +166,12 @@ export default function BookingStepDevices({ bookingData, onBack, onComplete }: 
           Back
         </button>
         <button
-          onClick={() => onComplete(selectedDevices)}
-          disabled={selectedIds.size === 0}
+          onClick={() => onComplete(selectedDevice ? [selectedDevice] : [])}
+          disabled={!selectedDevice}
           className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white btn-primary-gradient transition-all duration-200 min-h-[44px] disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Zap className="w-4 h-4" aria-hidden="true" />
-          Continue with {selectedIds.size} Device{selectedIds.size !== 1 ? 's' : ''}
+          Continue
         </button>
       </div>
     </div>
