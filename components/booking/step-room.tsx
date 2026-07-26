@@ -72,7 +72,7 @@ export default function BookingStepRoom({ preselectedId, onComplete }: Props) {
 
               <div className="relative h-36 overflow-hidden">
                 <Image src={room.images[0]} alt={room.name} fill className="object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#131824] via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-[#131824] via-transparent to-transparent" />
                 <div className="absolute bottom-2 left-3">
                   <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#0B0E14]/80 text-xs text-[#9BA3B7] backdrop-blur-sm">
                     {typeIcons[room.type]}
@@ -108,7 +108,7 @@ export default function BookingStepRoom({ preselectedId, onComplete }: Props) {
       <button
         onClick={() => selected && onComplete(selected)}
         disabled={!selected}
-        className="flex items-center justify-center gap-2 w-full px-6 py-4 rounded-xl text-base font-bold text-white btn-primary-gradient transition-all duration-200 min-h-[52px] disabled:opacity-40 disabled:cursor-not-allowed"
+        className="flex items-center justify-center gap-2 w-full px-6 py-4 rounded-xl text-base font-bold text-white btn-primary-gradient transition-all duration-200 min-h-13 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <Zap className="w-5 h-5" aria-hidden="true" />
         Continue to Select Devices

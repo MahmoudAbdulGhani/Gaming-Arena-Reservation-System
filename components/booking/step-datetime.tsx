@@ -167,7 +167,7 @@ export default function BookingStepDateTime({ bookingData, onComplete, onBack }:
                   key={time}
                   disabled={blocked}
                   onClick={() => setSelectedTime(time)}
-                  className={`shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 min-h-[44px] ${
+                  className={`shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 min-h-11 ${
                     blocked
                       ? 'bg-[#FF5C7A]/10 text-[#FF5C7A]/50 border border-[#FF5C7A]/20 cursor-not-allowed'
                       : isSelected
@@ -207,7 +207,7 @@ export default function BookingStepDateTime({ bookingData, onComplete, onBack }:
               <button
                 key={h}
                 onClick={() => setDuration(h)}
-                className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 min-h-[44px] ${
+                className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 min-h-11 ${
                   duration === h
                     ? 'bg-[#7C5CFF] text-white'
                     : 'bg-[#1B2130] text-[#9BA3B7] border border-[#262D3D] hover:border-[#7C5CFF]/40 hover:text-[#F5F6FA]'
@@ -247,7 +247,7 @@ export default function BookingStepDateTime({ bookingData, onComplete, onBack }:
       <div className="flex gap-3">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-[#9BA3B7] bg-[#131824] border border-[#262D3D] hover:text-[#F5F6FA] hover:border-[#7C5CFF]/40 transition-all duration-200 min-h-[44px]"
+          className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-[#9BA3B7] bg-[#131824] border border-[#262D3D] hover:text-[#F5F6FA] hover:border-[#7C5CFF]/40 transition-all duration-200 min-h-11"
         >
           <ChevronLeft className="w-4 h-4" aria-hidden="true" />
           Back
@@ -255,7 +255,7 @@ export default function BookingStepDateTime({ bookingData, onComplete, onBack }:
         <button
           onClick={handleContinue}
           disabled={!selectedDate || !selectedTime}
-          className="flex-1 px-6 py-3 rounded-xl text-sm font-bold text-white btn-primary-gradient transition-all duration-200 min-h-[44px] disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 px-6 py-3 rounded-xl text-sm font-bold text-white btn-primary-gradient transition-all duration-200 min-h-11 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Continue to Confirm
         </button>

@@ -173,7 +173,7 @@ export default function BookingStepDevices({ bookingData, onBack, onComplete }: 
       <div className="flex gap-3">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-[#9BA3B7] bg-[#131824] border border-[#262D3D] hover:text-[#F5F6FA] hover:border-[#7C5CFF]/40 transition-all duration-200 min-h-[44px]"
+          className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-[#9BA3B7] bg-[#131824] border border-[#262D3D] hover:text-[#F5F6FA] hover:border-[#7C5CFF]/40 transition-all duration-200 min-h-11"
         >
           <ChevronLeft className="w-4 h-4" aria-hidden="true" />
           Back
@@ -181,7 +181,7 @@ export default function BookingStepDevices({ bookingData, onBack, onComplete }: 
         <button
           onClick={() => onComplete(selectedDevices)}
           disabled={selectedIds.size === 0}
-          className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white btn-primary-gradient transition-all duration-200 min-h-[44px] disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white btn-primary-gradient transition-all duration-200 min-h-11 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Zap className="w-4 h-4" aria-hidden="true" />
           Continue with {selectedIds.size} Device{selectedIds.size !== 1 ? 's' : ''}

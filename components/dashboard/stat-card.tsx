@@ -12,6 +12,7 @@ interface StatCardProps {
   iconColorClass: string // tailwind classes for the icon circle's bg + text color
   value: string | number // the big number, e.g. 6 or "$268"
   label: string // the small caption under the number, e.g. "Total Bookings"
+  
 }
 
 export default function StatCard({ icon, iconColorClass, value, label }: StatCardProps) {

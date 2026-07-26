@@ -76,7 +76,7 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
 
           <div className="relative h-32 rounded-xl overflow-hidden mb-4">
             <Image src={room.images[0]} alt={room.name} fill className="object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#131824]/80 to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-[#131824]/80 to-transparent" />
             <div className="absolute bottom-3 left-3">
               <p className="text-base font-bold text-[#F5F6FA]" style={{ fontFamily: 'var(--font-display)' }}>
                 {room.name}
@@ -248,7 +248,7 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
         <button
           onClick={onBack}
           disabled={isProcessing}
-          className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-[#9BA3B7] bg-[#131824] border border-[#262D3D] hover:text-[#F5F6FA] hover:border-[#7C5CFF]/40 transition-all duration-200 min-h-[44px] disabled:opacity-40"
+          className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-[#9BA3B7] bg-[#131824] border border-[#262D3D] hover:text-[#F5F6FA] hover:border-[#7C5CFF]/40 transition-all duration-200 min-h-11 disabled:opacity-40"
         >
           <ChevronLeft className="w-4 h-4" aria-hidden="true" />
           Back
@@ -256,7 +256,7 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
         <button
           onClick={handlePay}
           disabled={isProcessing}
-          className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white btn-primary-gradient glow-violet transition-all duration-200 min-h-[44px] disabled:opacity-70"
+          className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white btn-primary-gradient glow-violet transition-all duration-200 min-h-11 disabled:opacity-70"
           aria-busy={isProcessing}
         >
           {isProcessing ? (
