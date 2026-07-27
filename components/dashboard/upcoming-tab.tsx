@@ -1,8 +1,9 @@
+'use client'
+
 import { useState } from 'react'
 import BookingCard from './booking-card'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import ModifyBookingModal from './modify-booking-modal'
-// import { mockBookings } from '@/lib/mock-data'
 import type { Booking } from '@/lib/types'
 
 interface UpcomingTabProps {

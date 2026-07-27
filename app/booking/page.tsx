@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, useMemo, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Navbar from '@/components/navbar'
 import Footer from '@/components/footer'
@@ -12,12 +12,11 @@ import BookingConfirmation from '@/components/booking/confirmation'
 import StripeProvider from '@/components/stripe-provider'
 import { CheckCircle2 } from 'lucide-react'
 import type { Room, Device } from '@/lib/types'
-import { mockRooms } from '@/lib/mock-data'
 
 const steps = [
   { number: 1, label: 'Choose Room' },
-  { number: 2, label: 'Select Devices' },
-  { number: 3, label: 'Date & Time' },
+  { number: 2, label: 'Date & Time' },
+  { number: 3, label: 'Select Devices' },
   { number: 4, label: 'Confirm & Pay' },
 ]
 
@@ -29,14 +28,18 @@ export interface BookingData {
   durationHours: number
   totalPrice: number
   paymentMethod: 'card' | 'cash'
+  targetUserId?: string
 }
 
 function BookingContent() {
   const searchParams = useSearchParams()
   const preselectedRoom = searchParams.get('room')
-  // Only actually preselected if the id from the URL matches a real room —
-  // otherwise fall back to step 1 instead of showing an empty step 2.
-  const matchedRoom = preselectedRoom ? mockRooms.find((r) => r._id === preselectedRoom) ?? null : null
+  const forUserId = searchParams.get('for') ?? undefined
+
+  const [rooms, setRooms] = useState<Room[]>([])
+  useEffect(() => { fetch('/api/rooms').then(r => r.json()).then(setRooms) }, [])
+
+  const matchedRoom = useMemo(() => preselectedRoom ? rooms.find(r => r._id === preselectedRoom) ?? null : null, [preselectedRoom, rooms])
 
   const [currentStep, setCurrentStep] = useState(matchedRoom ? 2 : 1)
   const [isCompleted, setIsCompleted] = useState(false)
@@ -48,6 +51,7 @@ function BookingContent() {
     durationHours: 1,
     totalPrice: 0,
     paymentMethod: 'card',
+    targetUserId: forUserId,
   })
 
   const handleStepComplete = (data: Partial<BookingData>) => {
@@ -125,14 +129,14 @@ function BookingContent() {
           />
         )}
         {currentStep === 2 && (
-          <BookingStepDevices
+          <BookingStepDateTime
             bookingData={bookingData}
-            onComplete={(devices) => handleStepComplete({ devices })}
+            onComplete={(data) => handleStepComplete(data)}
             onBack={() => setCurrentStep(1)}
           />
         )}
         {currentStep === 3 && (
-          <BookingStepDateTime
+          <BookingStepDevices
             bookingData={bookingData}
             onComplete={(data) => handleStepComplete(data)}
             onBack={() => setCurrentStep(2)}

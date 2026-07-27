@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { ChevronLeft, Lock, AlertCircle, CreditCard, Banknote, Clock } from 'lucide-react'
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import type { BookingData } from '@/app/booking/page'
-import { roomTypeLabels } from '@/lib/types'
+import { roomTypeLabels, formatTime12 } from '@/lib/types'
 
 interface Props {
   bookingData: BookingData
@@ -120,7 +120,7 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
           </h3>
 
           <div className="relative h-32 rounded-xl overflow-hidden mb-4">
-            <Image src={room.images[0]} alt={room.name} fill className="object-cover" />
+            <Image src={room.images[0] || '/images/room-pc.png'} alt={room.name} fill className="object-cover" />
             <div className="absolute inset-0 bg-linear-to-t from-[#131824]/80 to-transparent" />
             <div className="absolute bottom-3 left-3">
               <p className="text-base font-bold text-[#F5F6FA]" style={{ fontFamily: 'var(--font-display)' }}>
@@ -156,7 +156,7 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
                 label: 'Date',
                 value: new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
               },
-              { label: 'Time', value: `${startTime} – ${endTime}` },
+              { label: 'Time', value: `${formatTime12(startTime)} – ${formatTime12(endTime)}` },
               { label: 'Duration', value: `${durationHours} hour${durationHours > 1 ? 's' : ''}` },
               { label: 'Devices', value: `${devices?.length ?? 0} × $${room.pricePerHour}/hr` },
             ].map(({ label, value }) => (

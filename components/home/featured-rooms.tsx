@@ -1,10 +1,23 @@
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
 import StationCard from '@/components/room-card'
-import { mockRooms } from '@/lib/mock-data'
+import { getDb } from '@/lib/mongodb'
 
-export default function FeaturedRooms() {
-  const featured = mockRooms.slice(0, 4)
+export default async function FeaturedRooms() {
+  const db = await getDb()
+  const docs = await db.collection('rooms').find().sort({ createdAt: -1 }).limit(4).toArray()
+  const featured = docs.map((r) => ({
+    _id: r._id.toString(),
+    name: r.name,
+    type: r.type,
+    description: r.description ?? '',
+    images: r.images ?? [],
+    pricePerHour: r.pricePerHour,
+    totalDevices: r.totalDevices,
+    status: r.status,
+    createdAt: r.createdAt?.toISOString() ?? '',
+    updatedAt: r.updatedAt?.toISOString() ?? '',
+  }))
 
   return (
     <section className="py-24 bg-[#0B0E14]" aria-labelledby="featured-rooms-heading">

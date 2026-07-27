@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import type { Booking } from '@/lib/types'
-import { timeSlots } from '@/lib/mock-data'
+import { formatTime12 } from '@/lib/types'
+import { timeSlots } from '@/lib/static-data'
 import { hasSlotConflict } from '@/lib/booking-policy'
 
 interface ModifyBookingModalProps {
@@ -104,7 +105,7 @@ export default function ModifyBookingModal({ booking, allBookings, isOpen, onClo
           >
             {timeSlots.map((slot) => (
               <option key={slot} value={slot}>
-                {slot}
+                {formatTime12(slot)}
               </option>
             ))}
           </select>

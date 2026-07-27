@@ -1,5 +1,5 @@
 import { Star, Quote } from 'lucide-react'
-import { testimonials } from '@/lib/mock-data'
+import { testimonials } from '@/lib/static-data'
 
 export default function Testimonials() {
   return (

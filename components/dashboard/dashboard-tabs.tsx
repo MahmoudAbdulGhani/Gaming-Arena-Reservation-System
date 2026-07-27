@@ -1,18 +1,39 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import OverviewTab from './overview-tab'
 import UpcomingTab from './upcoming-tab'
 import HistoryTab from './history-tab'
 import ProfileTab from './profile-tab'
-import { mockBookings } from '@/lib/mock-data'
-import type { Booking } from '@/lib/types'
+import type { Booking, User } from '@/lib/types'
 
 type TabId = 'overview' | 'upcoming' | 'history' | 'profile'
 
-export default function DashboardTabs() {
+interface DashboardTabsProps {
+  user: User | null
+}
+
+export default function DashboardTabs({ user }: DashboardTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview')
-  const [bookings, setBookings] = useState<Booking[]>(mockBookings)
+  const [bookings, setBookings] = useState<Booking[]>([])
+  const [bookingsLoading, setBookingsLoading] = useState(true)
+
+  useEffect(() => {
+    const token = localStorage.getItem('gz_token')
+    if (!token) {
+      setBookingsLoading(false)
+      return
+    }
+    fetch('/api/bookings/my', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        setBookings(Array.isArray(data) ? data : [])
+      })
+      .catch(() => setBookings([]))
+      .finally(() => setBookingsLoading(false))
+  }, [])
 
   function updateBooking(bookingId: string, changes: Partial<Booking>) {
   setBookings((prevBookings) =>
@@ -60,15 +81,12 @@ const tabs: { id: TabId; label: string; count?: number }[] = [
       ))}
     </div>
 
-    {/* {actiOverviewTabveTab === 'overview' && (
-      < onViewAllUpcoming={() => setActiveTab('upcoming')} />
-    )} */}
     {activeTab === 'overview' && (
         <OverviewTab bookings={bookings} onUpdateBooking={updateBooking} onViewAllUpcoming={() => setActiveTab('upcoming')} />
     )}
     {activeTab === 'upcoming' && <UpcomingTab bookings={bookings} onUpdateBooking={updateBooking}/>}
     {activeTab === 'history' && <HistoryTab bookings={bookings} onUpdateBooking={updateBooking} />}
-    {activeTab === 'profile' && <ProfileTab />}
+    {activeTab === 'profile' && <ProfileTab user={user} />}
   </div>
 )
 }

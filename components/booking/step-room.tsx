@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { Zap, Monitor, Gamepad2, Glasses, Users, Cpu } from 'lucide-react'
-import { mockRooms, mockDevices } from '@/lib/mock-data'
-import type { Room } from '@/lib/types'
+import type { Room, Device } from '@/lib/types'
 import { getRoomAvailability, roomTypeLabels } from '@/lib/types'
 
 const typeIcons: Record<string, React.ReactNode> = {
@@ -21,18 +20,45 @@ interface Props {
 
 export default function BookingStepRoom({ preselectedId, onComplete }: Props) {
   const [selected, setSelected] = useState<Room | null>(null)
+  const [rooms, setRooms] = useState<Room[]>([])
+  const [devicesMap, setDevicesMap] = useState<Record<string, Device[]>>({})
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (preselectedId) {
-      const room = mockRooms.find((r) => r._id === preselectedId)
+    fetch('/api/rooms').then(r => r.json()).then((data: Room[]) => {
+      setRooms(data)
+      Promise.all(data.map(room =>
+        fetch(`/api/rooms/${room._id}/devices`).then(r => r.json())
+      )).then(results => {
+        const map: Record<string, Device[]> = {}
+        data.forEach((room, i) => {
+          map[room._id] = results[i]
+        })
+        setDevicesMap(map)
+        setLoading(false)
+      })
+    })
+  }, [])
+
+  useEffect(() => {
+    if (preselectedId && !loading) {
+      const room = rooms.find((r) => r._id === preselectedId)
       if (room) {
-        const roomDevices = mockDevices.filter((d) => d.roomId === room._id)
+        const roomDevices = devicesMap[room._id] ?? []
         if (getRoomAvailability(room, roomDevices) === 'available') setSelected(room)
       }
     }
-  }, [preselectedId])
+  }, [preselectedId, rooms, devicesMap, loading])
 
-  const bookableRooms = mockRooms.filter((r) => r.status !== 'inactive' && r.status !== 'maintenance')
+  const bookableRooms = rooms.filter((r) => r.status !== 'inactive' && r.status !== 'maintenance')
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-40">
+        <div className="w-8 h-8 rounded-full border-2 border-[#7C5CFF] border-t-transparent animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -45,7 +71,7 @@ export default function BookingStepRoom({ preselectedId, onComplete }: Props) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8" role="radiogroup" aria-label="Select a gaming room">
         {bookableRooms.map((room) => {
-          const devices = mockDevices.filter((d) => d.roomId === room._id)
+          const devices = devicesMap[room._id] ?? []
           const availableCount = devices.filter((d) => d.status === 'available').length
 
           return (
@@ -71,7 +97,7 @@ export default function BookingStepRoom({ preselectedId, onComplete }: Props) {
               )}
 
               <div className="relative h-36 overflow-hidden">
-                <Image src={room.images[0]} alt={room.name} fill className="object-cover" />
+                <Image src={room.images[0] || '/images/room-pc.png'} alt={room.name} fill className="object-cover" />
                 <div className="absolute inset-0 bg-linear-to-t from-[#131824] via-transparent to-transparent" />
                 <div className="absolute bottom-2 left-3">
                   <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#0B0E14]/80 text-xs text-[#9BA3B7] backdrop-blur-sm">
