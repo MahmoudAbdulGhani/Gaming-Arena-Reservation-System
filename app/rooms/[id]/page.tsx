@@ -5,7 +5,8 @@ import Link from 'next/link'
 import Navbar from '@/components/navbar'
 import Footer from '@/components/footer'
 import ReserveButton from '@/components/reserve-button'
-import { mockRooms, mockDevices } from '@/lib/mock-data'
+import { getDb } from '@/lib/mongodb'
+import { ObjectId } from 'mongodb'
 import { getRoomAvailability } from '@/lib/types'
 import {
   Monitor,
@@ -18,265 +19,230 @@ import {
   XCircle,
   Wrench,
   Ban,
-  Cpu,
 } from 'lucide-react'
 
 interface Props {
   params: Promise<{ id: string }>
 }
 
+const typeIcons: Record<string, React.ReactNode> = {
+  pc: <Monitor className="w-4 h-4" />,
+  console: <Gamepad2 className="w-4 h-4" />,
+  vr: <Glasses className="w-4 h-4" />,
+  private: <Users className="w-4 h-4" />,
+}
+
 const typeLabels: Record<string, string> = {
-  pc: 'PC',
-  console: 'Console',
-  vr: 'VR',
+  pc: 'PC Station',
+  console: 'Console Lounge',
+  vr: 'VR Room',
   private: 'Private Room',
 }
 
-const typeIcons: Record<string, React.ReactNode> = {
-  pc: <Monitor className="w-5 h-5" />,
-  console: <Gamepad2 className="w-5 h-5" />,
-  vr: <Glasses className="w-5 h-5" />,
-  private: <Users className="w-5 h-5" />,
-}
-
-const deviceStatusConfig = {
-  available: { label: 'Available', color: 'text-[#33E6A0]', bg: 'bg-[#33E6A0]/10 border-[#33E6A0]/30', dot: 'bg-[#33E6A0]' },
-  booked: { label: 'Booked', color: 'text-[#FF5C7A]', bg: 'bg-[#FF5C7A]/10 border-[#FF5C7A]/30', dot: 'bg-[#FF5C7A]' },
-  maintenance: { label: 'Maintenance', color: 'text-[#9BA3B7]', bg: 'bg-[#9BA3B7]/10 border-[#9BA3B7]/30', dot: 'bg-[#9BA3B7]' },
+const typeDefaultImages: Record<string, string> = {
+  pc: '/images/room-pc.png',
+  console: '/images/room-console.png',
+  vr: '/images/room-vr.png',
+  private: '/images/room-private.png',
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
-  const room = mockRooms.find((r) => r._id === id)
+  const db = await getDb()
+  const room = await db.collection('rooms').findOne({ _id: new ObjectId(id) })
   if (!room) return { title: 'Room Not Found' }
   return {
     title: `${room.name} — GameZone Arena`,
-    description: room.description,
+    description: room.description || `Book ${room.name} at GameZone Arena.`,
   }
 }
 
 export default async function RoomDetailPage({ params }: Props) {
   const { id } = await params
-  const room = mockRooms.find((r) => r._id === id)
+  const db = await getDb()
+  const room = await db.collection('rooms').findOne({ _id: new ObjectId(id) })
   if (!room) notFound()
 
-  const devices = mockDevices.filter((d) => d.roomId === room._id)
-  const availableCount = devices.filter((d) => d.status === 'available').length
-
-  const relatedRooms = mockRooms
-    .filter((r) => r.type === room.type && r._id !== room._id)
-    .slice(0, 3)
-
-  const roomStatusConfig = {
-    available: { label: 'Devices Available', icon: CheckCircle2, color: 'text-[#33E6A0]', bg: 'bg-[#33E6A0]/10 border-[#33E6A0]/20' },
-    booked: { label: 'Fully Booked', icon: XCircle, color: 'text-[#FF5C7A]', bg: 'bg-[#FF5C7A]/10 border-[#FF5C7A]/20' },
-    maintenance: { label: 'Under Maintenance', icon: Wrench, color: 'text-[#9BA3B7]', bg: 'bg-[#9BA3B7]/10 border-[#9BA3B7]/20' },
-    inactive: { label: 'Room Closed', icon: Ban, color: 'text-[#9BA3B7]', bg: 'bg-[#9BA3B7]/10 border-[#9BA3B7]/20' },
+  const roomData = {
+    _id: room._id.toString(),
+    name: room.name,
+    type: room.type,
+    description: room.description ?? '',
+    images: room.images ?? [],
+    pricePerHour: room.pricePerHour,
+    totalDevices: room.totalDevices,
+    status: room.status,
+    createdAt: room.createdAt?.toISOString() ?? '',
+    updatedAt: room.updatedAt?.toISOString() ?? '',
   }
 
-  // room.status alone is just the admin on/off switch — bookability also
-  // depends on live device status, so compute it the same way RoomCard does.
-  const availability = getRoomAvailability(room, devices)
-  const statusInfo = roomStatusConfig[availability]
-  const StatusIcon = statusInfo.icon
+  const deviceDocs = await db.collection('devices').find({ roomId: new ObjectId(id) }).toArray()
+  const devices = deviceDocs.map((d) => ({
+    _id: d._id.toString(),
+    roomId: d.roomId.toString(),
+    deviceLabel: d.deviceLabel,
+    status: d.status,
+    specs: d.specs ?? '',
+    createdAt: d.createdAt?.toISOString() ?? '',
+  }))
+
+  const availability = getRoomAvailability(roomData, devices)
+  const availableDevices = devices.filter((d) => d.status === 'available')
+  const allRoomIds = (await db.collection('rooms').find({}, { projection: { _id: 1 } }).toArray()).map((r) => r._id.toString())
+  const relatedIds = allRoomIds.filter((rid) => rid !== id).slice(0, 3)
+  const relatedDocs = await db.collection('rooms').find({ _id: { $in: relatedIds.map((rid) => new ObjectId(rid)) } }).toArray()
+  const relatedRooms = relatedDocs.map((r) => ({
+    _id: r._id.toString(),
+    name: r.name,
+    type: r.type,
+    description: r.description ?? '',
+    images: r.images ?? [],
+    pricePerHour: r.pricePerHour,
+    totalDevices: r.totalDevices,
+    status: r.status,
+  }))
+
   const canBook = availability === 'available'
 
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-[#0B0E14] pt-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-sm text-[#9BA3B7] mb-8" aria-label="Breadcrumb">
-            <Link href="/rooms" className="flex items-center gap-1 hover:text-[#7C5CFF] transition-colors">
-              <ChevronLeft className="w-4 h-4" />
-              Back to Rooms
-            </Link>
-          </nav>
+      <main className="min-h-screen bg-[#0B0E14]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Link
+            href="/rooms"
+            className="inline-flex items-center gap-1.5 text-sm text-[#9BA3B7] hover:text-[#F5F6FA] transition-colors mb-6"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Back to Rooms
+          </Link>
 
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
-            {/* Left: Image + description + devices */}
-            <div className="lg:col-span-3 space-y-6">
-              {/* Main image */}
-              <div className="relative rounded-2xl overflow-hidden aspect-video">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+            <div className="lg:col-span-2">
+              <div className="relative h-[400px] rounded-2xl overflow-hidden mb-6">
                 <Image
-                  src={room.images[0] || '/images/room-pc.png'}
-                  alt={`${room.name} gaming room`}
+                  src={roomData.images[0] || typeDefaultImages[roomData.type]}
+                  alt={roomData.name}
                   fill
                   className="object-cover"
                   priority
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E14]/40 to-transparent" />
-                <div className="absolute bottom-4 left-4">
-                  <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#0B0E14]/80 border border-[#262D3D] text-sm text-[#F5F6FA] backdrop-blur-sm">
-                    {typeIcons[room.type]}
-                    {typeLabels[room.type]}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E14] via-transparent to-transparent" />
+                <div className="absolute bottom-4 left-4 flex items-center gap-3">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#0B0E14]/80 backdrop-blur-sm text-sm font-semibold text-[#F5F6FA] border border-[#262D3D]">
+                    {typeIcons[roomData.type]}
+                    {typeLabels[roomData.type]}
                   </span>
                 </div>
               </div>
 
-              {/* Description */}
-              <div className="p-6 rounded-2xl bg-[#131824] border border-[#262D3D]">
-                <h2 className="text-lg font-bold text-[#F5F6FA] mb-3" style={{ fontFamily: 'var(--font-display)' }}>
-                  About This Room
-                </h2>
-                <p className="text-sm text-[#9BA3B7] leading-relaxed">{room.description}</p>
-              </div>
+              <h1 className="text-3xl font-bold text-[#F5F6FA] mb-3">{roomData.name}</h1>
+              <p className="text-[#9BA3B7] leading-relaxed mb-8">{roomData.description}</p>
 
-              {/* Devices grid */}
-              <div className="p-6 rounded-2xl bg-[#131824] border border-[#262D3D]">
-                <div className="flex items-center justify-between mb-5">
-                  <div className="flex items-center gap-2">
-                    <Cpu className="w-5 h-5 text-[#7C5CFF]" aria-hidden="true" />
-                    <h2 className="text-lg font-bold text-[#F5F6FA]" style={{ fontFamily: 'var(--font-display)' }}>
-                      Devices in This Room
-                    </h2>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-[#33E6A0] font-semibold">{availableCount}</span>
-                    <span className="text-[#9BA3B7]">/ {devices.length} available</span>
-                  </div>
-                </div>
-
-                {/* Legend */}
-                <div className="flex items-center gap-4 mb-4 text-xs text-[#9BA3B7]">
-                  {Object.entries(deviceStatusConfig).map(([key, val]) => (
-                    <span key={key} className="flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${val.dot}`} aria-hidden="true" />
-                      {val.label}
+              <h2 className="text-xl font-bold text-[#F5F6FA] mb-4">Devices in this Room</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {devices.map((device) => (
+                  <div
+                    key={device._id}
+                    className="flex items-center gap-3 p-4 rounded-xl bg-[#131824] border border-[#262D3D]"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[#F5F6FA]">{device.deviceLabel}</p>
+                      {device.specs && (
+                        <p className="text-xs text-[#9BA3B7] mt-0.5">{device.specs}</p>
+                      )}
+                    </div>
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${device.status === 'available'
+                      ? 'text-[#33E6A0] bg-[#33E6A0]/10 border border-[#33E6A0]/20'
+                      : device.status === 'booked'
+                      ? 'text-[#FF5C7A] bg-[#FF5C7A]/10 border border-[#FF5C7A]/20'
+                      : 'text-[#9BA3B7] bg-[#9BA3B7]/10 border border-[#9BA3B7]/20'
+                    }`}>
+                      {device.status === 'available' ? (
+                        <CheckCircle2 className="w-3 h-3" />
+                      ) : device.status === 'booked' ? (
+                        <XCircle className="w-3 h-3" />
+                      ) : (
+                        <Wrench className="w-3 h-3" />
+                      )}
+                      {device.status === 'available' ? 'Available' : device.status === 'booked' ? 'Booked' : 'Maintenance'}
                     </span>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {devices.map((device) => {
-                    const cfg = deviceStatusConfig[device.status]
-                    return (
-                      <div
-                        key={device._id}
-                        className={`flex items-start gap-3 p-4 rounded-xl border transition-all duration-200 ${cfg.bg}`}
-                      >
-                        <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${cfg.dot} ${device.status === 'available' ? 'animate-pulse' : ''}`} aria-hidden="true" />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <span className={`text-sm font-bold ${cfg.color}`} style={{ fontFamily: 'var(--font-display)' }}>
-                              {device.deviceLabel}
-                            </span>
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color} border`}>
-                              {cfg.label}
-                            </span>
-                          </div>
-                          <p className="text-xs text-[#9BA3B7] leading-relaxed" style={{ fontFamily: 'var(--font-mono)' }}>
-                            {device.specs}
-                          </p>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Right: Booking card */}
-            <aside className="lg:col-span-2 space-y-6">
-              <div className="sticky top-24 p-6 rounded-2xl bg-[#131824] border border-[#262D3D]">
-                {/* Name + status */}
-                <h1 className="text-2xl font-bold text-[#F5F6FA] mb-3" style={{ fontFamily: 'var(--font-display)' }}>
-                  {room.name}
-                </h1>
-
-                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border mb-6 ${statusInfo.bg} ${statusInfo.color}`}>
-                  {availability === 'available' && (
-                    <span className="w-2 h-2 rounded-full bg-[#33E6A0] animate-pulse" aria-hidden="true" />
-                  )}
-                  {availability !== 'available' && <StatusIcon className="w-4 h-4" aria-hidden="true" />}
-                  {statusInfo.label}
+            <div className="lg:col-span-1">
+              <div className="sticky top-24 bg-[#131824] border border-[#262D3D] rounded-2xl p-6">
+                <div className="flex items-baseline gap-1 mb-6">
+                  <span className="text-3xl font-black text-[#7C5CFF]">${roomData.pricePerHour}</span>
+                  <span className="text-sm text-[#9BA3B7]">/hour per device</span>
                 </div>
 
-                {/* Price */}
-                <div className="p-4 rounded-xl bg-[#1B2130] border border-[#262D3D] mb-4">
-                  <p className="text-xs text-[#9BA3B7] mb-1">Price per hour (per device)</p>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-black text-[#7C5CFF]" style={{ fontFamily: 'var(--font-mono)' }}>
-                      ${room.pricePerHour}
+                <div className="space-y-3 mb-6">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-[#9BA3B7]">Status</span>
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${availability === 'available'
+                      ? 'text-[#33E6A0] bg-[#33E6A0]/10'
+                      : availability === 'booked'
+                      ? 'text-[#FF5C7A] bg-[#FF5C7A]/10'
+                      : availability === 'maintenance'
+                      ? 'text-[#9BA3B7] bg-[#9BA3B7]/10'
+                      : 'text-[#9BA3B7] bg-[#9BA3B7]/10'
+                    }`}>
+                      {availability === 'available' && <><span className="w-1.5 h-1.5 rounded-full bg-[#33E6A0] animate-pulse" />Available</>}
+                      {availability === 'booked' && <><Ban className="w-3 h-3" />Fully Booked</>}
+                      {availability === 'maintenance' && <><Wrench className="w-3 h-3" />Maintenance</>}
+                      {availability === 'inactive' && <><Ban className="w-3 h-3" />Closed</>}
                     </span>
-                    <span className="text-[#9BA3B7]">/hr per device</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-[#9BA3B7]">Devices</span>
+                    <span className="text-[#F5F6FA] font-medium">{availableDevices.length} / {devices.length} available</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-[#9BA3B7]">Type</span>
+                    <span className="text-[#F5F6FA] font-medium">{typeLabels[roomData.type]}</span>
                   </div>
                 </div>
 
-                {/* Device availability summary */}
-                <div className="p-4 rounded-xl bg-[#1B2130] border border-[#262D3D] mb-4">
-                  <p className="text-xs text-[#9BA3B7] mb-3">Device Availability</p>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {devices.map((device) => {
-                      const cfg = deviceStatusConfig[device.status]
-                      return (
-                        <div
-                          key={device._id}
-                          title={`${device.deviceLabel}: ${cfg.label}`}
-                          className={`w-8 h-8 rounded-lg border flex items-center justify-center text-xs font-bold ${cfg.bg} ${cfg.color}`}
-                        >
-                          {device.deviceLabel.replace(/[^0-9]/g, '')}
-                        </div>
-                      )
-                    })}
-                  </div>
-                  <p className="text-xs text-[#9BA3B7] mt-3">
-                    You can select which devices to reserve in the booking flow.
-                  </p>
-                </div>
+                <ReserveButton roomId={id} canBook={canBook} />
 
-                {/* Opening hours */}
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-[#1B2130] border border-[#262D3D] mb-6">
-                  <Clock className="w-4 h-4 text-[#7C5CFF] shrink-0" aria-hidden="true" />
-                  <div>
-                    <p className="text-xs text-[#9BA3B7]">Available Hours</p>
-                    <p className="text-sm text-[#F5F6FA] font-medium">Daily: 10:00 AM – 12:00 AM</p>
-                  </div>
-                </div>
-
-                {/* CTA */}
-                <ReserveButton roomId={room._id} canBook={canBook} />
-
-                <p className="text-xs text-center text-[#9BA3B7] mt-3">
-                  No cancellation fee up to 2 hours before session
+                <p className="text-xs text-[#9BA3B7] text-center mt-4">
+                  Free cancellation up to 24 hours before your session.
                 </p>
               </div>
-            </aside>
+            </div>
           </div>
 
-          {/* Related rooms */}
           {relatedRooms.length > 0 && (
-            <section className="mt-16" aria-labelledby="related-heading">
-              <h2
-                id="related-heading"
-                className="text-2xl font-bold text-[#F5F6FA] mb-6"
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
-                Similar {typeLabels[room.type]} Rooms
-              </h2>
+            <section className="mb-12">
+              <h2 className="text-xl font-bold text-[#F5F6FA] mb-6">Similar Rooms</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {relatedRooms.map((r) => {
-                  const rDevices = mockDevices.filter((d) => d.roomId === r._id)
-                  const rAvail = rDevices.filter((d) => d.status === 'available').length
-                  return (
-                    <article key={r._id} className="group bg-[#131824] border border-[#262D3D] rounded-2xl overflow-hidden card-hover">
-                      <div className="relative h-40 overflow-hidden">
-                        <Image src={r.images[0]} alt={r.name} fill className="object-cover transition-transform duration-300 group-hover:scale-105" />
+                {relatedRooms.map((r) => (
+                  <Link
+                    key={r._id}
+                    href={`/rooms/${r._id}`}
+                    className="group bg-[#131824] border border-[#262D3D] rounded-2xl overflow-hidden hover:border-[#7C5CFF]/40 transition-all duration-200"
+                  >
+                    <div className="relative h-40 overflow-hidden">
+                      <Image
+                        src={typeDefaultImages[r.type]}
+                        alt={r.name}
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#131824] via-transparent to-transparent" />
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-bold text-[#F5F6FA] mb-1">{r.name}</h3>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-[#9BA3B7]">{typeLabels[r.type]}</span>
+                        <span className="text-[#7C5CFF] font-bold">${r.pricePerHour}/hr</span>
                       </div>
-                      <div className="p-4">
-                        <h3 className="font-bold text-[#F5F6FA] mb-1" style={{ fontFamily: 'var(--font-display)' }}>{r.name}</h3>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-[#9BA3B7]" style={{ fontFamily: 'var(--font-mono)' }}>${r.pricePerHour}/hr</span>
-                            <span className="text-xs text-[#33E6A0]">{rAvail}/{rDevices.length} free</span>
-                          </div>
-                          <Link href={`/rooms/${r._id}`} className="text-xs text-[#7C5CFF] hover:underline">View &rarr;</Link>
-                        </div>
-                      </div>
-                    </article>
-                  )
-                })}
+                    </div>
+                  </Link>
+                ))}
               </div>
             </section>
           )}

@@ -4,8 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Monitor, Gamepad2, Glasses, Users, Cpu, Zap, Clock } from 'lucide-react'
 import type { Room } from '@/lib/types'
-import { getRoomAvailability } from '@/lib/types'
-import { mockDevices } from '@/lib/mock-data'
+import { roomTypeLabels } from '@/lib/types'
 import BookLink from '@/components/book-link'
 
 const typeLabels: Record<string, string> = {
@@ -32,12 +31,18 @@ const typeColors: Record<string, string> = {
 interface RoomCardProps {
   room: Room
   compact?: boolean
+  availableCount?: number
+  totalCount?: number
 }
 
-export default function RoomCard({ room, compact = false }: RoomCardProps) {
-  const devices = mockDevices.filter((d) => d.roomId === room._id)
-  const availableCount = devices.filter((d) => d.status === 'available').length
-  const totalCount = devices.length
+export default function RoomCard({ room, compact = false, availableCount: ac, totalCount: tc }: RoomCardProps) {
+  const availableCount = ac ?? tc ?? room.totalDevices
+  const totalCount = tc ?? room.totalDevices
+
+  const availability = room.status === 'inactive' ? 'inactive' as const
+    : room.status === 'maintenance' ? 'maintenance' as const
+    : availableCount > 0 ? 'available' as const
+    : 'booked' as const
 
   const statusConfig = {
     available: { label: 'Rooms Open', color: 'text-[#33E6A0] bg-[#33E6A0]/10 border-[#33E6A0]/20' },
@@ -46,9 +51,6 @@ export default function RoomCard({ room, compact = false }: RoomCardProps) {
     inactive: { label: 'Closed', color: 'text-[#9BA3B7] bg-[#9BA3B7]/10 border-[#9BA3B7]/20' },
   }
 
-  // Room.status from the DB only says active/inactive/maintenance —
-  // whether it's bookable *right now* depends on live device status too.
-  const availability = getRoomAvailability(room, devices)
   const status = statusConfig[availability]
   const canBook = availability === 'available'
 

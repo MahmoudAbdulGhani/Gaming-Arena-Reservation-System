@@ -1,12 +1,10 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Navbar from '@/components/navbar'
 import Footer from '@/components/footer'
 import RoomCard from '@/components/room-card'
-import { mockRooms, mockDevices } from '@/lib/mock-data'
-import type { RoomType, RoomAvailability } from '@/lib/types'
-import { getRoomAvailability } from '@/lib/types'
+import type { Room, Device, RoomType, RoomAvailability } from '@/lib/types'
 import { Search, SlidersHorizontal, Monitor, Gamepad2, Glasses, Users, LayoutGrid, List } from 'lucide-react'
 
 const roomTypes: { label: string; value: RoomType | 'All'; icon: React.ReactNode }[] = [
@@ -17,18 +15,52 @@ const roomTypes: { label: string; value: RoomType | 'All'; icon: React.ReactNode
   { label: 'Private Room', value: 'private', icon: <Users className="w-4 h-4" /> },
 ]
 
+function getRoomAvailabilityFromDevices(room: Room, devices: Device[]): RoomAvailability {
+  if (room.status === 'inactive') return 'inactive'
+  if (room.status === 'maintenance') return 'maintenance'
+  if (devices.length === 1) {
+    if (devices[0].status === 'maintenance') return 'maintenance'
+    return devices[0].status === 'available' ? 'available' : 'booked'
+  }
+  return devices.filter((d) => d.status === 'available').length > 0 ? 'available' : 'booked'
+}
+
 export default function RoomsPage() {
+  const [rooms, setRooms] = useState<Room[]>([])
+  const [devicesMap, setDevicesMap] = useState<Record<string, Device[]>>({})
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedType, setSelectedType] = useState<RoomType | 'All'>('All')
-  // Filtering by bookability (available/booked/maintenance/inactive), not the
-  // raw admin `room.status` field — those are two different concepts now.
   const [selectedStatus, setSelectedStatus] = useState<RoomAvailability | 'All'>('All')
   const [maxPrice, setMaxPrice] = useState(100)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'name'>('name')
 
+  useEffect(() => {
+    fetch('/api/rooms')
+      .then((r) => r.json())
+      .then(async (roomsData: Room[]) => {
+        setRooms(roomsData)
+        const map: Record<string, Device[]> = {}
+        await Promise.all(
+          roomsData.map(async (room) => {
+            const res = await fetch(`/api/rooms/${room._id}/devices`)
+            map[room._id] = await res.json()
+          })
+        )
+        setDevicesMap(map)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const totalAvailableDevices = useMemo(
+    () => Object.values(devicesMap).flat().filter((d) => d.status === 'available').length,
+    [devicesMap]
+  )
+
   const filtered = useMemo(() => {
-    let result = [...mockRooms]
+    let result = [...rooms]
 
     if (searchQuery)
       result = result.filter(
@@ -39,8 +71,8 @@ export default function RoomsPage() {
     if (selectedType !== 'All') result = result.filter((r) => r.type === selectedType)
     if (selectedStatus !== 'All') {
       result = result.filter((r) => {
-        const roomDevices = mockDevices.filter((d) => d.roomId === r._id)
-        return getRoomAvailability(r, roomDevices) === selectedStatus
+        const roomDevices = devicesMap[r._id] ?? []
+        return getRoomAvailabilityFromDevices(r, roomDevices) === selectedStatus
       })
     }
     result = result.filter((r) => r.pricePerHour <= maxPrice)
@@ -50,15 +82,24 @@ export default function RoomsPage() {
     else result.sort((a, b) => a.name.localeCompare(b.name))
 
     return result
-  }, [searchQuery, selectedType, selectedStatus, maxPrice, sortBy])
+  }, [searchQuery, selectedType, selectedStatus, maxPrice, sortBy, rooms, devicesMap])
 
-  const totalAvailableDevices = mockDevices.filter((d) => d.status === 'available').length
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <main className="min-h-screen bg-[#0B0E14] pt-20 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full border-2 border-[#7C5CFF] border-t-transparent animate-spin" />
+        </main>
+        <Footer />
+      </>
+    )
+  }
 
   return (
     <>
       <Navbar />
       <main className="min-h-screen bg-[#0B0E14] pt-20">
-        {/* Page header */}
         <div className="bg-[#131824] border-b border-[#262D3D] py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold text-[#7C5CFF] bg-[#7C5CFF]/10 border border-[#7C5CFF]/20 mb-3 uppercase tracking-wider">
@@ -78,9 +119,7 @@ export default function RoomsPage() {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          {/* Filters bar */}
           <div className="flex flex-col gap-4 mb-8">
-            {/* Search + Sort + View */}
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9BA3B7]" aria-hidden="true" />
@@ -118,7 +157,6 @@ export default function RoomsPage() {
                   <option value="booked">Booked</option>
                 </select>
 
-                {/* View toggle */}
                 <div className="flex rounded-xl border border-[#262D3D] overflow-hidden" role="group" aria-label="View mode">
                   <button
                     onClick={() => setViewMode('grid')}
@@ -142,7 +180,6 @@ export default function RoomsPage() {
               </div>
             </div>
 
-            {/* Type filter pills */}
             <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by room type">
               {roomTypes.map(({ label, value, icon }) => (
                 <button
@@ -159,7 +196,6 @@ export default function RoomsPage() {
                 </button>
               ))}
 
-              {/* Price range */}
               <div className="flex items-center gap-3 ml-auto">
                 <label className="text-sm text-[#9BA3B7] whitespace-nowrap">
                   Max:&nbsp;
@@ -180,7 +216,6 @@ export default function RoomsPage() {
             </div>
           </div>
 
-          {/* Rooms grid / list */}
           {filtered.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-2xl font-bold text-[#F5F6FA] mb-2" style={{ fontFamily: 'var(--font-display)' }}>
@@ -197,7 +232,13 @@ export default function RoomsPage() {
               }
             >
               {filtered.map((room) => (
-                <RoomCard key={room._id} room={room} compact={viewMode === 'list'} />
+                <RoomCard
+                  key={room._id}
+                  room={room}
+                  compact={viewMode === 'list'}
+                  availableCount={devicesMap[room._id]?.filter((d) => d.status === 'available').length}
+                  totalCount={devicesMap[room._id]?.length}
+                />
               ))}
             </div>
           )}

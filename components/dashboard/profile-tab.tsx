@@ -1,20 +1,37 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { FormEvent } from 'react'
-import { mockUser } from '@/lib/mock-data'
+import type { User } from '@/lib/types'
 
 // Shared styling for every text input in this form.
 const inputClass =
   'w-full bg-[#1B2130] border border-[#262D3D] rounded-lg px-4 py-3 text-[#F5F6FA] placeholder:text-[#9BA3B7] focus:outline-none focus:ring-2 focus:ring-[#7C5CFF] transition-shadow duration-200'
 
-export default function ProfileTab() {
-  // Local editable copies of the user's info, seeded from mock data.
-  // There's no backend yet, so "saving" just proves the form works —
-  // wiring this to a real API route is a later step.
-  const [name, setName] = useState(mockUser.name)
-  const [email, setEmail] = useState(mockUser.email)
-  const [phone, setPhone] = useState(mockUser.phone ?? '')
+interface ProfileTabProps {
+  user: User | null
+}
+
+export default function ProfileTab({ user }: ProfileTabProps) {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+
+  useEffect(() => {
+    if (user) {
+      setName(user.name)
+      setEmail(user.email)
+      setPhone(user.phone ?? '')
+    }
+  }, [user])
+
+  if (!user) {
+    return (
+      <div className="text-center py-12 text-[#9BA3B7]">
+        Loading profile...
+      </div>
+    )
+  }
 
   function handleSave(e: FormEvent) {
     e.preventDefault()

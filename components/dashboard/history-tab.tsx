@@ -1,5 +1,6 @@
+'use client'
+
 import BookingCard from './booking-card'
-// import { mockBookings } from '@/lib/mock-data'
 import type { Booking } from '@/lib/types'
 
 interface HistoryTabProps {

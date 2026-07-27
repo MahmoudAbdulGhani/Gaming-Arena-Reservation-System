@@ -1,8 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronLeft, Cpu, Zap, CheckCircle2 } from 'lucide-react'
-import { mockDevices } from '@/lib/mock-data'
 import type { BookingData } from '@/app/booking/page'
 import type { Device } from '@/lib/types'
 
@@ -14,11 +13,26 @@ interface Props {
 
 export default function BookingStepDevices({ bookingData, onBack, onComplete }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [devices, setDevices] = useState<Device[]>([])
+  const [loading, setLoading] = useState(true)
 
   const { room } = bookingData
+
+  useEffect(() => {
+    if (!room) return
+    setLoading(true)
+    setSelectedId(null)
+    fetch(`/api/rooms/${room._id}/devices`)
+      .then(r => r.json())
+      .then((data: Device[]) => {
+        setDevices(data)
+        setLoading(false)
+      })
+  }, [room?._id])
+
   if (!room) return null
 
-  const roomDevices = mockDevices.filter((d) => d.roomId === room._id)
+  const roomDevices = devices
   const availableDevices = roomDevices.filter((d) => d.status === 'available')
 
   const deviceStatusConfig = {
@@ -49,6 +63,14 @@ export default function BookingStepDevices({ bookingData, onBack, onComplete }: 
   }
 
   const selectedDevice = selectedId ? roomDevices.find((d) => d._id === selectedId) ?? null : null
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-40">
+        <div className="w-8 h-8 rounded-full border-2 border-[#7C5CFF] border-t-transparent animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div>

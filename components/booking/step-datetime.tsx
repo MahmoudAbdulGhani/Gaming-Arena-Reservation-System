@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { ChevronLeft, ChevronRight, Clock } from 'lucide-react'
-import { timeSlots, reservedDeviceSlots } from '@/lib/mock-data'
+import { timeSlots } from '@/lib/static-data'
 import type { BookingData } from '@/app/booking/page'
 
 interface Props {
@@ -27,21 +27,6 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 const hourOf = (t: string) => Number(t.split(':')[0])
-
-function devicesOverlap(
-  deviceIds: string[],
-  startHour: number,
-  endHour: number,
-): boolean {
-  return deviceIds.some((id) => {
-    const ranges = reservedDeviceSlots[id] ?? []
-    return ranges.some((r) => {
-      const rs = hourOf(r.start)
-      const re = hourOf(r.end)
-      return rs < endHour && re > startHour
-    })
-  })
-}
 
 export default function BookingStepDateTime({ bookingData, onComplete, onBack }: Props) {
   const today = useMemo(() => new Date(), [])
@@ -71,24 +56,13 @@ export default function BookingStepDateTime({ bookingData, onComplete, onBack }:
     return h < nowHour || (h === nowHour && nowMinute > 0)
   }
 
-  const isSlotBlocked = (time: string): boolean => {
-    if (deviceIds.length === 0) return false
-    const h = hourOf(time)
-    return devicesOverlap(deviceIds, h, h + 1)
-  }
+  const isSlotBlocked = (_time: string): boolean => false
 
   const maxDuration = useMemo(() => {
     if (!selectedTime) return 1
     const startH = hourOf(selectedTime)
-    const limit = Math.min(24 - startH, 6)
-    if (limit <= 0) return 1
-    for (let d = 1; d <= limit; d++) {
-      if (devicesOverlap(deviceIds, startH, startH + d)) {
-        return d
-      }
-    }
-    return limit
-  }, [selectedTime, deviceIds])
+    return Math.min(24 - startH, 6)
+  }, [selectedTime])
 
   const effectiveDuration = Math.min(duration, maxDuration)
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import type { Booking } from '@/lib/types'
-import { timeSlots } from '@/lib/mock-data'
+import { timeSlots } from '@/lib/static-data'
 import { hasSlotConflict } from '@/lib/booking-policy'
 
 interface ModifyBookingModalProps {
