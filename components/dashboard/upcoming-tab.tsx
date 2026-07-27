@@ -19,6 +19,9 @@ export default function UpcomingTab({ bookings, onUpdateBooking  }: UpcomingTabP
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null)
   const [bookingToModify, setBookingToModify] = useState<Booking | null>(null)
 
+  console.log('RENDER — bookingToCancel is:', bookingToCancel)
+  console.log('RENDER — bookingToModify is:', bookingToModify)
+
   function handleConfirmCancel() {
     if (!bookingToCancel) return
     onUpdateBooking(bookingToCancel._id, { status: 'cancelled' })

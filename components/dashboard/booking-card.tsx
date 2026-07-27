@@ -124,7 +124,11 @@ export default function BookingCard({ booking, onModify, onCancel }: BookingCard
                 disabled={!modifyPolicy.allowed}
                 title={modifyPolicy.allowed ? undefined : modifyPolicy.reason}
                 onClick={() => onModify?.(booking)}
-                className="px-5 py-2 rounded-lg text-sm font-medium text-[#F5F6FA] border border-[#262D3D] hover:bg-[#1B2130] transition-colors duration-200"
+                className={`px-5 py-2 rounded-lg text-sm font-medium border transition-colors duration-200 ${
+                  modifyPolicy.allowed
+                    ? 'text-[#F5F6FA] border-[#262D3D] hover:bg-[#1B2130]'
+                    : 'text-[#5A6178] border-[#262D3D] opacity-50 cursor-not-allowed'
+                }`}
               >
                 Modify
               </button>
@@ -132,8 +136,12 @@ export default function BookingCard({ booking, onModify, onCancel }: BookingCard
                 type="button"
                 disabled={!cancelPolicy.allowed}
                 title={cancelPolicy.allowed ? undefined : cancelPolicy.reason}
-                onClick={() => onCancel?.(booking)}    
-                className="px-5 py-2 rounded-lg text-sm font-medium text-[#FF5C7A] border border-[#FF5C7A]/40 hover:bg-[#FF5C7A]/10 transition-colors duration-200"
+                onClick={() => onCancel?.(booking)}
+                className={`px-5 py-2 rounded-lg text-sm font-medium border transition-colors duration-200 ${
+                  cancelPolicy.allowed
+                    ? 'text-[#FF5C7A] border-[#FF5C7A]/40 hover:bg-[#FF5C7A]/10'
+                    : 'text-[#5A6178] border-[#262D3D] opacity-50 cursor-not-allowed'
+                }`}
               >
                 Cancel
               </button>
