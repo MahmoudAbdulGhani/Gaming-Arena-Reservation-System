@@ -4,8 +4,10 @@ import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { CheckCircle2, Clock, Calendar, Gamepad2, Download, LayoutDashboard, Cpu, Banknote, AlertCircle } from 'lucide-react'
+import jsPDF from 'jspdf'
 import type { BookingData } from '@/app/booking/page'
 import { roomTypeLabels } from '@/lib/types'
+
 
 interface Props {
   bookingData: BookingData
@@ -14,16 +16,280 @@ interface Props {
 export default function BookingConfirmation({ bookingData }: Props) {
   const { room, devices, date, startTime, durationHours, totalPrice, paymentMethod } = bookingData
 
+  
+
   const [bookingCode] = useState(() =>
     `GZ-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
   )
 
   if (!room) return null
 
+  const currentRoom = room
+
   const endHour = parseInt(startTime.split(':')[0]) + durationHours
   const endTime = `${String(endHour).padStart(2, '0')}:00`
 
   const isCash = paymentMethod === 'cash'
+
+// function handleDownloadReceipt() {
+//   const doc = new jsPDF()
+//   const pageCenter = 105 // half of the A4 page's 210mm width
+//   let y = 20
+
+//   // Logo — purple rounded square, matching the navbar's logo treatment
+//   const logoSize = 10
+//   doc.setFillColor(124, 92, 255)
+//   doc.roundedRect(pageCenter - logoSize / 2, y, logoSize, logoSize, 2, 2, 'F')
+//   doc.setFont('helvetica', 'bold')
+//   doc.setFontSize(9)
+//   doc.setTextColor(255, 255, 255)
+//   doc.text('G', pageCenter, y + logoSize / 2 + 1, { align: 'center' })
+
+//   y += logoSize + 8
+//   doc.setFont('helvetica', 'bold')
+//   doc.setFontSize(18)
+//   doc.setTextColor(0, 0, 0)
+//   doc.text('GameZone', pageCenter, y, { align: 'center' })
+
+//   y += 7
+//   doc.setFont('helvetica', 'normal')
+//   doc.setFontSize(11)
+//   doc.setTextColor(120, 120, 120)
+//   doc.text('Booking Receipt', pageCenter, y, { align: 'center' })
+
+//   y += 8
+//   doc.setDrawColor(210, 210, 210)
+//   doc.line(40, y, 170, y)
+
+//   // Status line
+//   y += 12
+//   doc.setFont('helvetica', 'bold')
+//   doc.setFontSize(14)
+//   doc.setTextColor(0, 0, 0)
+//   doc.text(isCash ? 'Booking Pending — Payment Approval Required' : 'Booking Confirmed', pageCenter, y, { align: 'center' })
+
+//   // Pending-approval note (cash only)
+//   if (isCash) {
+//     y += 8
+//     doc.setFont('helvetica', 'bold')
+//     doc.setFontSize(12)
+//     doc.setTextColor(255, 179, 71)
+//     doc.text('Pending Payment Approval', pageCenter, y, { align: 'center' })
+//     doc.setTextColor(0, 0, 0)
+//   }
+
+//   // Booking code
+//   y += 10
+//   doc.setFont('helvetica', 'normal')
+//   doc.setFontSize(11)
+//   doc.text(`Booking Code: ${bookingCode}`, pageCenter, y, { align: 'center' })
+
+//   // Room + type
+//   y += 12
+//   doc.setFont('helvetica', 'bold')
+//   doc.setFontSize(13)
+//   doc.text(currentRoom.name, pageCenter, y, { align: 'center' })
+//   doc.setFont('helvetica', 'normal')
+//   doc.setFontSize(10)
+//   doc.setTextColor(120, 120, 120)
+//   doc.text(roomTypeLabels[currentRoom.type], pageCenter, y + 6, { align: 'center' })
+//   doc.setTextColor(0, 0, 0)
+
+//   y += 16
+
+//   // Devices
+//   if (devices && devices.length > 0) {
+//     doc.text(`Devices: ${devices.map((d) => d.deviceLabel).join(', ')}`, pageCenter, y, { align: 'center' })
+//     y += 8
+//   }
+
+//   // Date / time / location
+//   const formattedDate = new Date(date).toLocaleDateString('en-US', {
+//     weekday: 'long',
+//     year: 'numeric',
+//     month: 'long',
+//     day: 'numeric',
+//   })
+//   doc.text(`Date: ${formattedDate}`, pageCenter, y, { align: 'center' })
+//   y += 8
+//   doc.text(`Time: ${startTime} - ${endTime} (${durationHours}h)`, pageCenter, y, { align: 'center' })
+//   y += 8
+//   doc.text('Location: GameZone Arena, Main Floor', pageCenter, y, { align: 'center' })
+
+//   // Amount
+//   y += 10
+//   doc.setDrawColor(210, 210, 210)
+//   doc.line(40, y, 170, y)
+//   y += 10
+//   doc.setFont('helvetica', 'bold')
+//   doc.setFontSize(14)
+//   doc.text(isCash ? 'Amount Due:' : 'Amount Paid:', pageCenter, y, { align: 'center' })
+//   y += 8
+//   doc.setFontSize(16)
+//   doc.text(`$${totalPrice}`, pageCenter, y, { align: 'center' })
+
+//   // Cash note
+//   if (isCash) {
+//     y += 12
+//     doc.setFont('helvetica', 'normal')
+//     doc.setFontSize(9)
+//     doc.setTextColor(180, 120, 20)
+//     const note = doc.splitTextToSize(
+//       'Pay cash at the front desk. Your booking will be confirmed once payment is received.',
+//       130
+//     )
+//     doc.text(note, pageCenter, y, { align: 'center' })
+//   }
+
+//   doc.save(`receipt-${bookingCode}.pdf`)
+function handleDownloadReceipt() {
+  const doc = new jsPDF()
+  const pageWidth = 210
+  const pageCenter = 105
+
+  // ---- Header band ----
+  doc.setFillColor(60, 52, 137)
+  doc.rect(0, 0, pageWidth, 32, 'F')
+
+  const logoSize = 9
+  doc.setFillColor(127, 119, 221)
+  doc.roundedRect(20, 9, logoSize, logoSize, 2, 2, 'F')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.setTextColor(255, 255, 255)
+  doc.text('G', 20 + logoSize / 2, 9 + logoSize / 2 + 1.2, { align: 'center' })
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(16)
+  doc.setTextColor(255, 255, 255)
+  doc.text('GameZone Arena', 33, 16)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  doc.setTextColor(206, 203, 246)
+  doc.text('Booking Receipt', 33, 22)
+
+  let y = 46
+
+  // ---- Status pill ----
+  const pillText = isCash ? 'Booking Pending' : 'Booking Confirmed'
+  const pillBg: [number, number, number] = isCash ? [250, 238, 218] : [234, 243, 222]
+  const pillTextColor: [number, number, number] = isCash ? [133, 79, 11] : [39, 80, 10]
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(11)
+  const pillTextWidth = doc.getTextWidth(pillText)
+  const pillPaddingX = 8
+  const pillWidth = pillTextWidth + pillPaddingX * 2
+  const pillHeight = 9
+  const pillX = pageCenter - pillWidth / 2
+
+  doc.setFillColor(...pillBg)
+  doc.roundedRect(pillX, y, pillWidth, pillHeight, pillHeight / 2, pillHeight / 2, 'F')
+  doc.setTextColor(...pillTextColor)
+  doc.text(pillText, pageCenter, y + pillHeight / 2 + 1.5, { align: 'center' })
+
+  y += pillHeight + 10
+
+  // ---- Booking code ----
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(13)
+  doc.setTextColor(60, 52, 137)
+  doc.text(bookingCode, pageCenter, y, { align: 'center' })
+
+  y += 12
+
+  // ---- Room name + type ----
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(15)
+  doc.setTextColor(38, 33, 92)
+  doc.text(currentRoom.name, pageCenter, y, { align: 'center' })
+
+  y += 6
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  doc.setTextColor(136, 135, 128)
+  doc.text(roomTypeLabels[currentRoom.type], pageCenter, y, { align: 'center' })
+
+  y += 10
+  doc.setDrawColor(211, 209, 199)
+  doc.line(45, y, 165, y)
+
+  y += 10
+
+  // ---- Two-column details ----
+  const formattedDate = new Date(date).toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+
+  const rows: [string, string][] = [
+    ['Date', formattedDate],
+    ['Time', `${startTime} - ${endTime} (${durationHours}h)`],
+  ]
+  if (devices && devices.length > 0) {
+    rows.push(['Devices', devices.map((d) => d.deviceLabel).join(', ')])
+  }
+  rows.push(['Location', 'GameZone Arena, Main Floor'])
+
+  rows.forEach(([label, value]) => {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.setTextColor(136, 135, 128)
+    doc.text(label, 45, y)
+
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(44, 44, 42)
+    doc.text(value, 165, y, { align: 'right' })
+
+    y += 8
+  })
+
+  y += 6
+
+  // ---- Highlighted amount box ----
+  const amountBg: [number, number, number] = isCash ? [250, 238, 218] : [234, 243, 222]
+  const amountLabelColor: [number, number, number] = isCash ? [133, 79, 11] : [59, 109, 17]
+  const amountValueColor: [number, number, number] = isCash ? [65, 36, 2] : [23, 52, 4]
+
+  const boxHeight = 20
+  doc.setFillColor(...amountBg)
+  doc.roundedRect(45, y, 120, boxHeight, 4, 4, 'F')
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.setTextColor(...amountLabelColor)
+  doc.text(isCash ? 'Amount Due' : 'Amount Paid', 53, y + boxHeight / 2 + 1)
+
+  doc.setFontSize(16)
+  doc.setTextColor(...amountValueColor)
+  doc.text(`$${totalPrice}`, 157, y + boxHeight / 2 + 2, { align: 'right' })
+
+  y += boxHeight + 12
+
+  // ---- Cash note ----
+  if (isCash) {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(133, 79, 11)
+    const note = doc.splitTextToSize(
+      'Pay cash at the front desk. Your booking will be confirmed once payment is received.',
+      130
+    )
+    doc.text(note, pageCenter, y, { align: 'center' })
+    y += note.length * 5 + 6
+  }
+
+  // ---- Footer ----
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  doc.setTextColor(180, 178, 169)
+  doc.text('Thanks for booking with GameZone Arena', pageCenter, y, { align: 'center' })
+
+  doc.save(`receipt-${bookingCode}.pdf`)
+}
 
   return (
     <div className="flex items-center justify-center py-16 px-4">
@@ -80,13 +346,13 @@ export default function BookingConfirmation({ bookingData }: Props) {
         <div className="p-6 rounded-2xl bg-[#131824] border border-[#262D3D] text-left mb-6">
           <div className="flex items-center gap-4 mb-5">
             <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0">
-              <Image src={room.images[0]} alt={room.name} fill className="object-cover" />
+              <Image src={currentRoom.images[0]} alt={currentRoom.name} fill className="object-cover" />
             </div>
             <div>
               <p className="font-bold text-[#F5F6FA]" style={{ fontFamily: 'var(--font-display)' }}>
-                {room.name}
+                {currentRoom.name}
               </p>
-              <p className="text-sm text-[#9BA3B7]">{roomTypeLabels[room.type]}</p>
+              <p className="text-sm text-[#9BA3B7]">{roomTypeLabels[currentRoom.type]}</p>
             </div>
           </div>
 
@@ -163,6 +429,7 @@ export default function BookingConfirmation({ bookingData }: Props) {
             View My Bookings
           </Link>
           <button
+            onClick={handleDownloadReceipt}
             className="flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-[#9BA3B7] bg-[#131824] border border-[#262D3D] hover:text-[#F5F6FA] hover:border-[#7C5CFF]/40 transition-all duration-200 min-h-11"
             aria-label="Download booking confirmation"
           >
@@ -181,3 +448,5 @@ export default function BookingConfirmation({ bookingData }: Props) {
     </div>
   )
 }
+
+

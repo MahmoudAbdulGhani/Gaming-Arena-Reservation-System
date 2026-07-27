@@ -2,10 +2,12 @@
 
 import { useState, useCallback } from 'react'
 import Link from 'next/link'
-import { Search, Plus, ExternalLink, Pencil, Eye, Trash2, X } from 'lucide-react'
+import { Search, Plus, ExternalLink, Pencil, Eye, Trash2, X, Download } from 'lucide-react'
 import Navbar from '@/components/navbar'
 import { mockRooms, mockDevices, mockBookings, mockUsers } from '@/lib/mock-data'
 import type { RoomType } from '@/lib/types'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 const typeColors: Record<RoomType, string> = {
   pc: '#7c6cf2',
@@ -356,6 +358,13 @@ export default function AdminPage() {
           <div className="bg-[#12121a] border border-[#23232f] rounded-[14px] overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-[#23232f]">
               <h2 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>All Bookings</h2>
+              <button
+                  onClick={handleDownloadBookingsReport}
+                  className="inline-flex items-center gap-2 px-[16px] py-[9px] rounded-[10px] text-[13px] font-semibold text-[#f5f5f7] border border-[#23232f] bg-[#0a0a0f] hover:bg-[#1a1a26] transition-all"
+               >
+                 <Download className="w-4 h-4" />
+                    Download Report
+              </button>
               <Link href="/booking" className="inline-flex items-center gap-2 px-[16px] py-[9px] rounded-[10px] text-[13px] font-semibold text-white no-underline cursor-pointer btn-primary-gradient glow-violet transition-all duration-200">
                 <Plus className="w-4 h-4" />
                 Add Reservation
@@ -822,4 +831,154 @@ export default function AdminPage() {
       <DetailModal open={detailModal.open} onClose={() => setDetailModal({ open: false, title: '', details: [] })} title={detailModal.title} details={detailModal.details} />
     </div>
   )
+}
+
+// function handleDownloadBookingsReport() {
+//   const doc = new jsPDF()
+
+//   // Header
+//   doc.setFont('helvetica', 'bold')
+//   doc.setFontSize(18)
+//   doc.setTextColor(124, 92, 255)
+//   doc.text('GameZone Arena', 14, 18)
+
+//   doc.setFontSize(12)
+//   doc.setTextColor(80, 80, 80)
+//   doc.text('Bookings Report', 14, 25)
+
+//   doc.setFontSize(9)
+//   doc.setTextColor(140, 140, 140)
+//   doc.text(`Generated: ${new Date().toLocaleString('en-US')}`, 14, 31)
+//   doc.text(`Total records: ${mockBookings.length}`, 14, 36)
+
+//   // Table
+//   autoTable(doc, {
+//     startY: 42,
+//     head: [['Booking ID', 'Room', 'Devices', 'Date', 'Time', 'Duration', 'Amount', 'Status', 'Payment']],
+//     body: mockBookings.map((b) => {
+//       const room = mockRooms.find((r) => r._id === b.roomId)
+//       const originalIndex = mockBookings.indexOf(b)
+//       return [
+//         bookingIds[originalIndex],
+//         room?.name || 'Room',
+//         String(b.deviceCount),
+//         formatDate(b.bookingDate),
+//         b.startTime,
+//         `${b.durationHours}h`,
+//         `$${b.totalPrice}`,
+//         b.status.charAt(0).toUpperCase() + b.status.slice(1),
+//         b.paymentStatus.charAt(0).toUpperCase() + b.paymentStatus.slice(1),
+//       ]
+//     }),
+//     styles: { fontSize: 9, cellPadding: 4 },
+//     headStyles: { fillColor: [124, 92, 255], textColor: [255, 255, 255], fontStyle: 'bold' },
+//     alternateRowStyles: { fillColor: [245, 245, 250] },
+//   })
+
+//   doc.save(`gamezone-bookings-report-${Date.now()}.pdf`)
+// }
+function handleDownloadBookingsReport() {
+  const doc = new jsPDF()
+  const pageWidth = 210
+
+  // ---- Header band ----
+  doc.setFillColor(60, 52, 137)
+  doc.rect(0, 0, pageWidth, 30, 'F')
+
+  const logoSize = 8
+  doc.setFillColor(127, 119, 221)
+  doc.roundedRect(14, 8, logoSize, logoSize, 2, 2, 'F')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(9)
+  doc.setTextColor(255, 255, 255)
+  doc.text('G', 14 + logoSize / 2, 8 + logoSize / 2 + 1, { align: 'center' })
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(15)
+  doc.setTextColor(255, 255, 255)
+  doc.text('GameZone Arena', 26, 14)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  doc.setTextColor(206, 203, 246)
+  doc.text(
+    `Bookings Report  \u00b7  Generated ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+    26,
+    20
+  )
+
+  // ---- Summary stat cards ----
+  const totalCount = mockBookings.length
+  const revenue = mockBookings
+    .filter((b) => b.status === 'completed' || b.paymentStatus === 'paid')
+    .reduce((s, b) => s + b.totalPrice, 0)
+  const pendingCountReport = mockBookings.filter((b) => b.status === 'pending').length
+  const completedCountReport = mockBookings.filter((b) => b.status === 'completed').length
+
+  const stats: [string, string][] = [
+    ['Total Bookings', String(totalCount)],
+    ['Revenue', `$${revenue}`],
+    ['Pending', String(pendingCountReport)],
+    ['Completed', String(completedCountReport)],
+  ]
+
+  const statBoxWidth = 42
+  const statGap = 4
+  const statsStartX = 14
+  const statsY = 38
+
+  stats.forEach(([label, value], i) => {
+    const x = statsStartX + i * (statBoxWidth + statGap)
+    doc.setFillColor(241, 239, 232)
+    doc.roundedRect(x, statsY, statBoxWidth, 18, 3, 3, 'F')
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(95, 94, 90)
+    doc.text(label, x + 5, statsY + 7)
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(13)
+    doc.setTextColor(44, 44, 42)
+    doc.text(value, x + 5, statsY + 14)
+  })
+
+  // ---- Table ----
+  autoTable(doc, {
+    startY: 64,
+    head: [['Booking ID', 'Room', 'Devices', 'Date', 'Time', 'Duration', 'Amount', 'Status', 'Payment']],
+    body: mockBookings.map((b) => {
+      const room = mockRooms.find((r) => r._id === b.roomId)
+      const originalIndex = mockBookings.indexOf(b)
+      return [
+        bookingIds[originalIndex],
+        room?.name || 'Room',
+        String(b.deviceCount),
+        formatDate(b.bookingDate),
+        b.startTime,
+        `${b.durationHours}h`,
+        `$${b.totalPrice}`,
+        b.status.charAt(0).toUpperCase() + b.status.slice(1),
+        b.paymentStatus.charAt(0).toUpperCase() + b.paymentStatus.slice(1),
+      ]
+    }),
+    styles: { fontSize: 9, cellPadding: 4, textColor: [44, 44, 42] },
+    headStyles: { fillColor: [60, 52, 137], textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 247, 243] },
+    columnStyles: {
+      6: { halign: 'right' },
+    },
+  })
+
+  // ---- Page numbers (added after the table is fully laid out) ----
+  const totalPages = doc.getNumberOfPages()
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(180, 178, 169)
+    doc.text(`Page ${i} of ${totalPages}`, pageWidth - 14, doc.internal.pageSize.height - 10, { align: 'right' })
+  }
+
+  doc.save(`gamezone-bookings-report-${Date.now()}.pdf`)
 }
