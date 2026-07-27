@@ -7,8 +7,8 @@ export async function POST(request: Request) {
   try {
     const { name, email, phone, password } = await request.json()
 
-    if (!name || !email || !password) {
-      return NextResponse.json({ error: 'Name, email, and password are required' }, { status: 400 })
+    if (!name || !email || !phone || !password) {
+      return NextResponse.json({ error: 'Name, email, phone, and password are required' }, { status: 400 })
     }
 
     if (password.length < 6) {
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       email: email.toLowerCase(),
       password: hashedPassword,
       role: 'customer',
-      phone: phone || '',
+      phone: phone,
       isVerified: false,
       loyaltyPoints: 0,
       createdAt: new Date(),

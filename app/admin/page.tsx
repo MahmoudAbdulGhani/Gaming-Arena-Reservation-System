@@ -1065,33 +1065,57 @@ export default function AdminPage() {
                             {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
                           </span>
                         </td>
-                        <td className="px-5 py-4">
-                          <span className={`text-[12px] px-2.5 py-1 rounded-full font-semibold ${
-                            b.paymentStatus === 'paid' ? 'bg-[#2fd18f]/15 text-[#2fd18f]' :
-                            b.paymentStatus === 'refunded' ? 'bg-[#f25c78]/15 text-[#f25c78]' :
-                            'bg-[#6c8cf5]/15 text-[#6c8cf5]'
-                          }`}>
-                            {b.paymentStatus.charAt(0).toUpperCase() + b.paymentStatus.slice(1)}
-                          </span>
-                        </td>
+                       <td className="px-5 py-4">
+  <div className="flex items-center gap-2">
+    <span
+      className={`text-[12px] px-2.5 py-1 rounded-full font-semibold ${
+        b.paymentStatus === 'paid'
+          ? 'bg-[#2fd18f]/15 text-[#2fd18f]'
+          : b.paymentStatus === 'refunded'
+          ? 'bg-[#f25c78]/15 text-[#f25c78]'
+          : 'bg-[#6c8cf5]/15 text-[#6c8cf5]'
+      }`}
+    >
+      {b.paymentStatus.charAt(0).toUpperCase() + b.paymentStatus.slice(1)}
+    </span>
+
+    {b.paymentStatus === 'paid' && b.paymentMethod === 'cash' && (
+      <span className="px-2 py-0.5 rounded-full text-[11px] bg-yellow-100 text-yellow-800">
+        Cash
+      </span>
+    )}
+
+    {b.paymentStatus === 'paid' && b.paymentMethod === 'card' && (
+      <span className="px-2 py-0.5 rounded-full text-[11px] bg-blue-100 text-blue-800">
+        Card
+      </span>
+    )}
+  </div>
+</td>
                         <td className="px-5 py-4 text-right">
                           <div className="flex items-center justify-end gap-1">
-                            {b.paymentStatus === 'unpaid' && b.status === 'pending' && (
-                              <button
-                                onClick={() => {
-                                  setConfirmModal({
-                                    title: 'Approve Cash Payment',
-                                    message: `Approve cash payment for booking ${getDisplayId(b._id)}? This will mark the payment as paid and confirm the booking.`,
-                                    confirmText: 'Approve',
-                                    confirmButtonClassName: 'bg-[#2fd18f] hover:bg-[#25b16f]',
-                                    onConfirm: () => handleApproveCash(b._id),
-                                  })
-                                }}
-                                className="px-2 py-1 rounded-[6px] text-[11px] font-semibold text-[#2fd18f] bg-[#2fd18f]/10 hover:bg-[#2fd18f]/20 transition-all cursor-pointer border-none"
-                              >
-                                Approve Cash
-                              </button>
-                            )}
+                           {b.paymentStatus === 'unpaid' && b.status === 'pending' && (
+  <>
+    <span className="px-2 py-1 rounded-[6px] text-[11px] font-semibold bg-yellow-100 text-yellow-800">
+      Cash
+    </span>
+
+    <button
+      onClick={() => {
+        setConfirmModal({
+          title: 'Approve Cash Payment',
+          message: `Approve cash payment for booking ${getDisplayId(b._id)}? This will mark the payment as paid and confirm the booking.`,
+          confirmText: 'Approve',
+          confirmButtonClassName: 'bg-[#2fd18f] hover:bg-[#25b16f]',
+          onConfirm: () => handleApproveCash(b._id),
+        })
+      }}
+      className="px-2 py-1 rounded-[6px] text-[11px] font-semibold text-[#2fd18f] bg-[#2fd18f]/10 hover:bg-[#2fd18f]/20 transition-all cursor-pointer border-none"
+    >
+      Approve Payment
+    </button>
+  </>
+)}
                             <button
                               onClick={() => setDetailModal({
                                 open: true,

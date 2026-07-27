@@ -35,6 +35,10 @@ export default function RegisterPage() {
       setError('Please enter a valid email address')
       return
     }
+    if (!phone.trim()) {
+  setError('Phone number is required')
+  return
+}
     if (password.length < 6) {
       setError('Password must be at least 6 characters')
       return
@@ -144,7 +148,7 @@ export default function RegisterPage() {
 
           <div>
             <label htmlFor="phone" className="block text-sm text-[#9BA3B7] mb-2">
-              Phone <span className="text-[#9BA3B7]/60">(optional)</span>
+              Phone Number
             </label>
             <input
               id="phone"
@@ -154,6 +158,7 @@ export default function RegisterPage() {
               placeholder="+1 (555) 000-0000"
               className={inputClass}
               autoComplete="tel"
+              required
             />
           </div>
 
