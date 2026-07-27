@@ -218,12 +218,13 @@ export default function BookingConfirmation({ bookingData }: Props) {
           </button>
         </div>
 
-        <Link
-          href="/booking"
-          className="block mt-4 text-sm text-[#9BA3B7] hover:text-[#7C5CFF] transition-colors duration-200"
+        <button
+          type="button"
+          onClick={() => { window.location.href = '/booking' }}
+          className="block mx-auto mt-4 text-sm text-[#9BA3B7] hover:text-[#7C5CFF] transition-colors duration-200"
         >
           Make another booking
-        </Link>
+        </button>
       </div>
     </div>
   )
