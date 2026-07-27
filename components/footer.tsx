@@ -1,4 +1,7 @@
+'use client'
+
 import Link from 'next/link'
+import BookLink from '@/components/book-link'
 import { Gamepad2, ExternalLink, Share2, Globe, MapPin, Phone, Mail } from 'lucide-react'
 
 export default function Footer() {
@@ -53,9 +56,7 @@ export default function Footer() {
               {[
                 { label: 'Home', href: '/' },
                 { label: 'Rooms', href: '/rooms' },
-                { label: 'Book a Session', href: '/booking' },
                 { label: 'Dashboard', href: '/dashboard' },
-                { label: 'Admin Panel', href: '/admin' },
               ].map(({ label, href }) => (
                 <li key={href}>
                   <Link
@@ -66,6 +67,14 @@ export default function Footer() {
                   </Link>
                 </li>
               ))}
+              <li>
+                <BookLink
+                  href="/booking"
+                  className="text-sm text-[#9BA3B7] hover:text-[#7C5CFF] transition-colors duration-200"
+                >
+                  Book a Session
+                </BookLink>
+              </li>
             </ul>
           </div>
 
@@ -117,7 +126,7 @@ export default function Footer() {
                   href="tel:+15551234567"
                   className="text-sm text-[#9BA3B7] hover:text-[#7C5CFF] transition-colors duration-200"
                 >
-                  +961 30 60 90
+                  +961 03 30 60 90
                 </a>
               </li>
               <li className="flex items-center gap-3">

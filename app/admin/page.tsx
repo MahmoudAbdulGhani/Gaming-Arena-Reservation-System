@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { Search, Plus, ExternalLink, Pencil, Eye, Trash2, X, Loader2 } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Search, Plus, Pencil, Eye, Trash2, X, Loader2 } from 'lucide-react'
 import Navbar from '@/components/navbar'
 import type { Room, Device, Booking, User, RoomType } from '@/lib/types'
 import { formatTime12 } from '@/lib/types'
+import { useAuth } from '@/lib/auth-context'
 
 const typeColors: Record<RoomType, string> = {
   pc: '#7c6cf2',
@@ -386,6 +387,24 @@ function AddReservationModal({ users, onClose }: { users: AdminUser[]; onClose: 
 }
 
 export default function AdminPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0a0a0f]">
+        <Navbar />
+        <div className="flex items-center justify-center h-[80vh]">
+          <Loader2 className="w-8 h-8 text-[#7c6cf2] animate-spin" />
+        </div>
+      </div>
+    }>
+      <AdminPageContent />
+    </Suspense>
+  )
+}
+
+function AdminPageContent() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const { user, loading: authLoading } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [search, setSearch] = useState('')
   const [roomSearch, setRoomSearch] = useState('')
@@ -395,6 +414,19 @@ export default function AdminPage() {
   const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null)
   const [showAddRoom, setShowAddRoom] = useState(false)
   const [showAddReservation, setShowAddReservation] = useState(false)
+
+  useEffect(() => {
+    if (searchParams.get('addReservation') === 'true') {
+      setShowAddReservation(true)
+      router.replace('/admin')
+    }
+  }, [searchParams, router])
+
+  useEffect(() => {
+    if (!authLoading && (!user || user.role !== 'admin')) {
+      router.replace('/')
+    }
+  }, [user, authLoading, router])
 
   const [rooms, setRooms] = useState<Room[]>([])
   const [devices, setDevices] = useState<Device[]>([])
@@ -575,6 +607,17 @@ export default function AdminPage() {
     { id: 'users', label: 'Users', badge: users.length },
   ]
 
+  if (authLoading || !user || user.role !== 'admin') {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f]">
+        <Navbar />
+        <div className="flex items-center justify-center h-[80vh]">
+          <Loader2 className="w-8 h-8 text-[#7c6cf2] animate-spin" />
+        </div>
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0a0f]">
@@ -600,26 +643,6 @@ export default function AdminPage() {
             </button>
           </div>
         )}
-
-        {/* Breadcrumb */}
-        <div className="text-[13px] text-[#6b6b7b] mb-1.5">
-          <Link href="/" className="text-[#7c6cf2] no-underline">GameZone</Link> › Admin Panel
-        </div>
-
-        {/* Top row */}
-        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-7">
-          <h1 className="text-[28px] sm:text-[32px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>Admin Panel</h1>
-          <div className="flex gap-3 w-full sm:w-auto">
-            <Link href="/" className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-[18px] py-[11px] rounded-[10px] text-[14px] font-semibold border border-[#23232f] bg-[#12121a] text-[#f5f5f7] hover:bg-[#1a1a26] transition-all no-underline">
-              <ExternalLink className="w-4 h-4" />
-              View Site
-            </Link>
-            <button onClick={() => setShowAddReservation(true)} className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-[18px] py-[11px] rounded-[10px] text-[14px] font-semibold text-white no-underline cursor-pointer btn-primary-gradient glow-violet transition-all duration-200">
-              <Plus className="w-4 h-4" />
-              Add Reservation
-            </button>
-          </div>
-        </div>
 
         {/* Tabs */}
         <div className="flex gap-4 sm:gap-7 border-b border-[#23232f] mb-7 overflow-x-auto scrollbar-none">
@@ -714,16 +737,31 @@ export default function AdminPage() {
             </div>
 
             <div className="bg-[#12121a] border border-[#23232f] rounded-[14px] p-[22px]">
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex justify-between items-center mb-5">
                 <div className="text-[16px] font-bold text-[#f5f5f7]" style={{ fontFamily: 'var(--font-display)' }}>Revenue by Room Type</div>
               </div>
-              {revenueByType.map((r) => (
-                <div key={r.label} className="flex items-center gap-4 mb-5 last:mb-0">
-                  <div className="text-[14px] text-[#9a9aab] text-right min-w-[110px]">{r.label}</div>
-                  <div className="h-[26px] rounded-[6px] flex items-center px-3" style={{ width: `${(r.value / maxRev) * 100}%`, background: r.color, minWidth: r.value > 0 ? 40 : 0 }} />
-                  <div className="text-[14px] font-semibold text-[#f5f5f7] min-w-[70px]">${r.value}</div>
-                </div>
-              ))}
+              <div className="space-y-3">
+                {revenueByType.map((r) => {
+                  const pct = maxRev > 0 ? (r.value / maxRev) * 100 : 0
+                  return (
+                    <div key={r.label} className="group">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: r.color }} />
+                          <span className="text-[13px] text-[#9a9aab] font-medium">{r.label}</span>
+                        </div>
+                        <span className="text-[13px] font-bold text-[#f5f5f7]" style={{ fontFamily: 'var(--font-mono)' }}>${r.value}</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-[#1a1a26] overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500 ease-out"
+                          style={{ width: `${Math.max(pct, r.value > 0 ? 8 : 0)}%`, background: `linear-gradient(90deg, ${r.color}, ${r.color}aa)` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </>
         )}
