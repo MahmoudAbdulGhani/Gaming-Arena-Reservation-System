@@ -3,13 +3,12 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Gamepad2, Zap, LogOut, User, Menu, X, ExternalLink } from 'lucide-react'
+import { Gamepad2, LogOut, User, Menu, X, ExternalLink } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 
 const navLinks = [
   { label: 'Home', href: '/' },
   { label: 'Rooms', href: '/rooms' },
-  { label: 'Book Now', href: '/booking' },
   { label: 'Dashboard', href: '/dashboard' },
   { label: 'Contact', href: '/contact' },
 ]
@@ -145,13 +144,6 @@ export default function Navbar() {
                       <LogOut className="w-4 h-4" />
                       Logout
                     </button>
-                    <Link
-                      href="/booking"
-                      className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white btn-primary-gradient transition-all duration-200 min-h-11"
-                    >
-                      <Zap className="w-4 h-4" aria-hidden="true" />
-                      Book Now
-                    </Link>
                   </>
                 ) : (
                   <>
@@ -160,13 +152,6 @@ export default function Navbar() {
                       className="px-4 py-2 text-sm font-medium text-[#9BA3B7] hover:text-[#F5F6FA] transition-colors duration-200 whitespace-nowrap"
                     >
                       Sign In
-                    </Link>
-                    <Link
-                      href="/booking"
-                      className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white btn-primary-gradient transition-all duration-200 min-h-[44px] whitespace-nowrap"
-                    >
-                      <Zap className="w-4 h-4" aria-hidden="true" />
-                      Book Now
                     </Link>
                   </>
                 )}
@@ -240,14 +225,6 @@ export default function Navbar() {
                         <LogOut className="w-4 h-4" />
                         Logout
                       </button>
-                      <Link
-                        href="/booking"
-                        onClick={() => setMobileOpen(false)}
-                        className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-lg text-sm font-semibold text-white btn-primary-gradient transition-all duration-200"
-                      >
-                        <Zap className="w-4 h-4" />
-                        Book Now
-                      </Link>
                     </>
                   ) : (
                     <>
@@ -257,14 +234,6 @@ export default function Navbar() {
                         className="block px-4 py-2.5 rounded-lg text-sm font-medium text-[#9BA3B7] hover:text-[#F5F6FA] hover:bg-[#1B2130] transition-all duration-200"
                       >
                         Sign In
-                      </Link>
-                      <Link
-                        href="/auth/login?redirect=%2Fbooking"
-                        onClick={() => setMobileOpen(false)}
-                        className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-lg text-sm font-semibold text-white btn-primary-gradient transition-all duration-200"
-                      >
-                        <Zap className="w-4 h-4" />
-                        Book Now
                       </Link>
                     </>
                   )}
