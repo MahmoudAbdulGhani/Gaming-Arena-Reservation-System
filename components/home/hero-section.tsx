@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { Zap, ChevronRight, Star } from 'lucide-react'
 import BookLink from '@/components/book-link'
 
@@ -11,17 +10,21 @@ export default function HeroSection() {
             className="relative min-h-screen flex items-center justify-center overflow-hidden hero-texture"
             aria-label="Hero"
         >
-            {/* Background image */}
+            {/* Background video */}
             <div className="absolute inset-0 z-0">
-                <Image
-                    src="/images/hero-bg.png"
-                    alt="GameZone Arena interior with illuminated gaming rooms"
-                    fill
-                    className="object-cover"
-                    priority
-                />
-                <div className="absolute inset-0 bg-[#0B0E14]/75" />
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0B0E14]" />
+                <video
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    poster="/images/hero-bg.png"
+                    className="w-full h-full object-cover"
+                    aria-hidden="true"
+                >
+                    <source src="/video/Intro.mp4" type="video/mp4" />
+                </video>
+                <div className="absolute inset-0 bg-[#0B0E14]/55" />
+                <div className="absolute inset-0 bg-gradient-to-b from-[#0B0E14]/20 via-transparent to-[#0B0E14]/80" />
             </div>
 
             {/* Content */}
