@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { CheckCircle2, Clock, Calendar, Gamepad2, Download, LayoutDashboard, Cpu, Banknote, AlertCircle } from 'lucide-react'
+import { CheckCircle2, Clock, Calendar, Gamepad2, Download, LayoutDashboard, Cpu, Banknote, AlertCircle, Loader2 } from 'lucide-react'
 import type { BookingData } from '@/app/booking/page'
 import { roomTypeLabels, formatTime12 } from '@/lib/types'
 
@@ -12,11 +12,46 @@ interface Props {
 }
 
 export default function BookingConfirmation({ bookingData }: Props) {
-  const { room, devices, date, startTime, durationHours, totalPrice, paymentMethod } = bookingData
+  const { room, devices, date, startTime, durationHours, totalPrice, paymentMethod, targetUserId } = bookingData
 
   const [bookingCode] = useState(() =>
     `GZ-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
   )
+
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState('')
+
+  useEffect(() => {
+    if (!room || saved || saving) return
+    setSaving(true)
+
+    const endHour = parseInt(startTime.split(':')[0]) + durationHours
+    const endTime = `${String(endHour).padStart(2, '0')}:00`
+
+    const token = localStorage.getItem('gz_token')
+    fetch('/api/bookings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        userId: targetUserId,
+        roomId: room._id,
+        deviceIds: devices?.map((d) => d._id) ?? [],
+        bookingDate: date,
+        startTime,
+        endTime,
+        durationHours,
+        totalPrice,
+        paymentMethod,
+      }),
+    })
+      .then((res) => { if (res.ok) setSaved(true); else return res.json().then((d) => { throw new Error(d.error || 'Failed') }) })
+      .catch((err) => setSaveError(err instanceof Error ? err.message : 'Failed to save booking'))
+      .finally(() => setSaving(false))
+  }, [room, saved, saving, devices, date, startTime, durationHours, totalPrice, paymentMethod, targetUserId])
 
   if (!room) return null
 
@@ -28,6 +63,18 @@ export default function BookingConfirmation({ bookingData }: Props) {
   return (
     <div className="flex items-center justify-center py-16 px-4">
       <div className="w-full max-w-lg text-center">
+        {saving && (
+          <div className="mb-6 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#7C5CFF]/10 border border-[#7C5CFF]/20">
+            <Loader2 className="w-4 h-4 text-[#7C5CFF] animate-spin" />
+            <span className="text-sm text-[#7C5CFF] font-medium">Saving your booking...</span>
+          </div>
+        )}
+        {saveError && (
+          <div className="mb-6 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#FF5C7A]/10 border border-[#FF5C7A]/20">
+            <AlertCircle className="w-4 h-4 text-[#FF5C7A]" />
+            <span className="text-sm text-[#FF5C7A]">{saveError}</span>
+          </div>
+        )}
         {/* Status icon */}
         <div className="flex items-center justify-center mb-6">
           {isCash ? (

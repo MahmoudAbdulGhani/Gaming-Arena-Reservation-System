@@ -28,11 +28,13 @@ export interface BookingData {
   durationHours: number
   totalPrice: number
   paymentMethod: 'card' | 'cash'
+  targetUserId?: string
 }
 
 function BookingContent() {
   const searchParams = useSearchParams()
   const preselectedRoom = searchParams.get('room')
+  const forUserId = searchParams.get('for') ?? undefined
 
   const [rooms, setRooms] = useState<Room[]>([])
   useEffect(() => { fetch('/api/rooms').then(r => r.json()).then(setRooms) }, [])
@@ -49,6 +51,7 @@ function BookingContent() {
     durationHours: 1,
     totalPrice: 0,
     paymentMethod: 'card',
+    targetUserId: forUserId,
   })
 
   const handleStepComplete = (data: Partial<BookingData>) => {

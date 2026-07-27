@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Search, Plus, ExternalLink, Pencil, Eye, Trash2, X, Loader2 } from 'lucide-react'
 import Navbar from '@/components/navbar'
 import type { Room, Device, Booking, User, RoomType } from '@/lib/types'
@@ -301,6 +302,89 @@ interface AdminUser extends User {
   totalSpent: number
 }
 
+function AddReservationModal({ users, onClose }: { users: AdminUser[]; onClose: () => void }) {
+  const router = useRouter()
+  const [search, setSearch] = useState('')
+
+  const nonAdminUsers = users.filter((u) => u.role !== 'admin')
+  const filtered = nonAdminUsers.filter((u) => {
+    if (!search) return true
+    const q = search.toLowerCase()
+    return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+  })
+
+  const handleSelect = (userId: string) => {
+    router.push(`/booking?for=${userId}`)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-[#12121a] border border-[#23232f] rounded-[16px] w-full max-w-md mx-4 shadow-2xl flex flex-col" style={{ maxHeight: '80vh' }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-[#23232f] shrink-0">
+          <div>
+            <h3 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>Reserve for Customer</h3>
+            <p className="text-[13px] text-[#6b6b7b] mt-1 m-0">Select the customer you&apos;re booking for</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-[8px] text-[#6b6b7b] hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-5 pt-4 pb-2 shrink-0">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b6b7b]" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name or email..."
+              autoFocus
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] pl-9 pr-4 py-2 text-[14px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-colors"
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-2 min-h-0" style={{ scrollbarWidth: 'thin' }}>
+          {filtered.length === 0 ? (
+            <div className="py-8 text-center text-[14px] text-[#6b6b7b]">No customers found</div>
+          ) : (
+            filtered.map((u) => {
+              const initial = u.name.charAt(0).toUpperCase()
+              return (
+                <button
+                  key={u._id}
+                  onClick={() => handleSelect(u._id)}
+                  className="w-full flex items-center gap-3 p-3 rounded-[10px] hover:bg-[#1a1a26] transition-all cursor-pointer border-none bg-transparent text-left group"
+                >
+                  <div className="w-10 h-10 rounded-[8px] flex items-center justify-center text-[15px] font-bold shrink-0 bg-[#23232f] text-[#9a9aab] group-hover:bg-[#7c6cf2]/15 group-hover:text-[#7c6cf2] transition-all">
+                    {initial}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[14px] font-medium text-[#f5f5f7] truncate">{u.name}</div>
+                    <div className="text-[12px] text-[#6b6b7b] truncate">{u.email}</div>
+                  </div>
+                  <div className="shrink-0 flex items-center gap-2">
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
+                      u.isVerified ? 'bg-[#2fd18f]/15 text-[#2fd18f]' : 'bg-[#f2a13c]/15 text-[#f2a13c]'
+                    }`}>
+                      {u.isVerified ? 'Verified' : 'Unverified'}
+                    </span>
+                    <Plus className="w-4 h-4 text-[#6b6b7b] group-hover:text-[#7c6cf2] transition-all" />
+                  </div>
+                </button>
+              )
+            })
+          )}
+        </div>
+
+        <div className="px-5 py-3 border-t border-[#23232f] shrink-0">
+          <span className="text-[12px] text-[#6b6b7b]">{filtered.length} customer{filtered.length !== 1 ? 's' : ''} available</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [search, setSearch] = useState('')
@@ -310,6 +394,7 @@ export default function AdminPage() {
   const [editingRoom, setEditingRoom] = useState<{ id: string; name: string; pricePerHour: number; type: string; images: string; status: string } | null>(null)
   const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null)
   const [showAddRoom, setShowAddRoom] = useState(false)
+  const [showAddReservation, setShowAddReservation] = useState(false)
 
   const [rooms, setRooms] = useState<Room[]>([])
   const [devices, setDevices] = useState<Device[]>([])
@@ -529,10 +614,10 @@ export default function AdminPage() {
               <ExternalLink className="w-4 h-4" />
               View Site
             </Link>
-            <Link href="/booking" className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-[18px] py-[11px] rounded-[10px] text-[14px] font-semibold text-white no-underline cursor-pointer btn-primary-gradient glow-violet transition-all duration-200">
+            <button onClick={() => setShowAddReservation(true)} className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-[18px] py-[11px] rounded-[10px] text-[14px] font-semibold text-white no-underline cursor-pointer btn-primary-gradient glow-violet transition-all duration-200">
               <Plus className="w-4 h-4" />
               Add Reservation
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -648,10 +733,10 @@ export default function AdminPage() {
           <div className="bg-[#12121a] border border-[#23232f] rounded-[14px] overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-[#23232f]">
               <h2 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>All Bookings</h2>
-              <Link href="/booking" className="inline-flex items-center gap-2 px-[16px] py-[9px] rounded-[10px] text-[13px] font-semibold text-white no-underline cursor-pointer btn-primary-gradient glow-violet transition-all duration-200">
+              <button onClick={() => setShowAddReservation(true)} className="inline-flex items-center gap-2 px-[16px] py-[9px] rounded-[10px] text-[13px] font-semibold text-white no-underline cursor-pointer btn-primary-gradient glow-violet transition-all duration-200">
                 <Plus className="w-4 h-4" />
                 Add Reservation
-              </Link>
+              </button>
             </div>
 
             <div className="px-5 py-4 border-b border-[#23232f]">
@@ -1230,6 +1315,7 @@ export default function AdminPage() {
         )}
       </div>
       {showAddRoom && <AddRoomModal onSave={handleAddRoom} onClose={() => setShowAddRoom(false)} />}
+      {showAddReservation && <AddReservationModal users={users} onClose={() => setShowAddReservation(false)} />}
       {confirmModal && <ConfirmModal message={confirmModal.message} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(null)} />}
       {editingRoom && <RoomEditModal room={editingRoom} onSave={handleEditRoom} onClose={() => setEditingRoom(null)} />}
       <DetailModal open={detailModal.open} onClose={() => setDetailModal({ open: false, title: '', details: [] })} title={detailModal.title} details={detailModal.details} />
