@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { ChevronLeft, Lock, AlertCircle, CreditCard, Banknote, Clock } from 'lucide-react'
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import type { BookingData } from '@/app/booking/page'
-import { roomTypeLabels } from '@/lib/types'
+import { roomTypeLabels, formatTime12 } from '@/lib/types'
 
 interface Props {
   bookingData: BookingData
@@ -156,7 +156,7 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
                 label: 'Date',
                 value: new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
               },
-              { label: 'Time', value: `${startTime} – ${endTime}` },
+              { label: 'Time', value: `${formatTime12(startTime)} – ${formatTime12(endTime)}` },
               { label: 'Duration', value: `${durationHours} hour${durationHours > 1 ? 's' : ''}` },
               { label: 'Devices', value: `${devices?.length ?? 0} × $${room.pricePerHour}/hr` },
             ].map(({ label, value }) => (

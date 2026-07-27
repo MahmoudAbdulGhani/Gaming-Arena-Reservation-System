@@ -15,8 +15,8 @@ import type { Room, Device } from '@/lib/types'
 
 const steps = [
   { number: 1, label: 'Choose Room' },
-  { number: 2, label: 'Select Devices' },
-  { number: 3, label: 'Date & Time' },
+  { number: 2, label: 'Date & Time' },
+  { number: 3, label: 'Select Devices' },
   { number: 4, label: 'Confirm & Pay' },
 ]
 
@@ -126,14 +126,14 @@ function BookingContent() {
           />
         )}
         {currentStep === 2 && (
-          <BookingStepDevices
+          <BookingStepDateTime
             bookingData={bookingData}
-            onComplete={(devices) => handleStepComplete({ devices })}
+            onComplete={(data) => handleStepComplete(data)}
             onBack={() => setCurrentStep(1)}
           />
         )}
         {currentStep === 3 && (
-          <BookingStepDateTime
+          <BookingStepDevices
             bookingData={bookingData}
             onComplete={(data) => handleStepComplete(data)}
             onBack={() => setCurrentStep(2)}

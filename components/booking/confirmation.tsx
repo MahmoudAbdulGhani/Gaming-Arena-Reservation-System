@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { CheckCircle2, Clock, Calendar, Gamepad2, Download, LayoutDashboard, Cpu, Banknote, AlertCircle } from 'lucide-react'
 import type { BookingData } from '@/app/booking/page'
-import { roomTypeLabels } from '@/lib/types'
+import { roomTypeLabels, formatTime12 } from '@/lib/types'
 
 interface Props {
   bookingData: BookingData
@@ -126,7 +126,7 @@ export default function BookingConfirmation({ bookingData }: Props) {
               <Clock className="w-4 h-4 text-[#7C5CFF] shrink-0" aria-hidden="true" />
               <dt className="sr-only">Time</dt>
               <dd className="text-sm text-[#F5F6FA]" style={{ fontFamily: 'var(--font-mono)' }}>
-                {startTime} &ndash; {endTime} ({durationHours}h)
+                {formatTime12(startTime)} &ndash; {formatTime12(endTime)} ({durationHours}h)
               </dd>
             </div>
             <div className="flex items-center gap-3">

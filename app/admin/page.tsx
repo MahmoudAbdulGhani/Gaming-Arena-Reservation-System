@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Search, Plus, ExternalLink, Pencil, Eye, Trash2, X, Loader2 } from 'lucide-react'
 import Navbar from '@/components/navbar'
 import type { Room, Device, Booking, User, RoomType } from '@/lib/types'
+import { formatTime12 } from '@/lib/types'
 
 const typeColors: Record<RoomType, string> = {
   pc: '#7c6cf2',
@@ -704,7 +705,7 @@ export default function AdminPage() {
                         </td>
                         <td className="px-5 py-4">
                           <div className="text-[14px] text-[#f5f5f7]">{formatDate(b.bookingDate)}</div>
-                          <div className="text-[12px] text-[#6b6b7b]">{b.startTime}</div>
+                          <div className="text-[12px] text-[#6b6b7b]">{formatTime12(b.startTime)}</div>
                         </td>
                         <td className="px-5 py-4">
                           <span className="text-[14px] text-[#f5f5f7]">{b.durationHours}h</span>
@@ -749,11 +750,11 @@ export default function AdminPage() {
                                   { label: 'Room', value: room?.name || 'N/A' },
                                   { label: 'Devices', value: `${b.deviceCount}` },
                                   { label: 'Date', value: formatDate(b.bookingDate) },
-                                  { label: 'Time', value: b.startTime },
-                                  { label: 'Duration', value: `${b.durationHours}h` },
-                                  { label: 'Amount', value: `$${b.totalPrice}` },
-                                  {
-                                    label: 'Status',
+                                   { label: 'Time', value: formatTime12(b.startTime) },
+                                   { label: 'Duration', value: `${b.durationHours}h` },
+                                   { label: 'Amount', value: `$${b.totalPrice}` },
+                                   {
+                                     label: 'Status',
                                     value: b.status.charAt(0).toUpperCase() + b.status.slice(1),
                                     color:
                                       b.status === 'confirmed' ? '#2fd18f' :
@@ -821,10 +822,10 @@ export default function AdminPage() {
                               { label: 'Room', value: room?.name || 'N/A' },
                               { label: 'Devices', value: `${b.deviceCount}` },
                               { label: 'Date', value: formatDate(b.bookingDate) },
-                              { label: 'Time', value: b.startTime },
-                              { label: 'Duration', value: `${b.durationHours}h` },
-                              { label: 'Amount', value: `$${b.totalPrice}` },
-                              { label: 'Status', value: b.status.charAt(0).toUpperCase() + b.status.slice(1), color: b.status === 'confirmed' ? '#2fd18f' : b.status === 'pending' ? '#6c8cf5' : b.status === 'cancelled' ? '#f25c78' : '#9a9aab' },
+                               { label: 'Time', value: formatTime12(b.startTime) },
+                               { label: 'Duration', value: `${b.durationHours}h` },
+                               { label: 'Amount', value: `$${b.totalPrice}` },
+                               { label: 'Status', value: b.status.charAt(0).toUpperCase() + b.status.slice(1), color: b.status === 'confirmed' ? '#2fd18f' : b.status === 'pending' ? '#6c8cf5' : b.status === 'cancelled' ? '#f25c78' : '#9a9aab' },
                               { label: 'Payment', value: b.paymentStatus.charAt(0).toUpperCase() + b.paymentStatus.slice(1), color: payColor },
                             ],
                           })}
@@ -848,7 +849,7 @@ export default function AdminPage() {
                       </div>
                     </div>
                     <div className="flex items-center justify-between text-[13px]">
-                      <span className="text-[#6b6b7b]">{formatDate(b.bookingDate)} · {b.startTime} · {b.durationHours}h</span>
+                      <span className="text-[#6b6b7b]">{formatDate(b.bookingDate)} · {formatTime12(b.startTime)} · {b.durationHours}h</span>
                       <span className="font-bold text-[#f5f5f7]">${b.totalPrice}</span>
                     </div>
                     <div className="flex items-center gap-2">

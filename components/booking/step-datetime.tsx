@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { ChevronLeft, ChevronRight, Clock } from 'lucide-react'
 import { timeSlots } from '@/lib/static-data'
+import { formatTime12 } from '@/lib/types'
 import type { BookingData } from '@/app/booking/page'
 
 interface Props {
@@ -38,12 +39,7 @@ export default function BookingStepDateTime({ bookingData, onComplete, onBack }:
   const [duration, setDuration] = useState(1)
 
   const weekDates = getWeekDates(weekAnchor)
-  const { room, devices } = bookingData
-
-  const deviceIds = useMemo(
-    () => devices?.map((d) => d._id) ?? [],
-    [devices],
-  )
+  const { room } = bookingData
 
   const isToday = useMemo(() => {
     if (!selectedDate) return false
@@ -56,12 +52,10 @@ export default function BookingStepDateTime({ bookingData, onComplete, onBack }:
     return h < nowHour || (h === nowHour && nowMinute > 0)
   }
 
-  const isSlotBlocked = (_time: string): boolean => false
-
   const maxDuration = useMemo(() => {
     if (!selectedTime) return 1
     const startH = hourOf(selectedTime)
-    return Math.min(24 - startH, 6)
+    return Math.min(24 - startH, 8)
   }, [selectedTime])
 
   const effectiveDuration = Math.min(duration, maxDuration)
@@ -71,10 +65,6 @@ export default function BookingStepDateTime({ bookingData, onComplete, onBack }:
     const h = hourOf(selectedTime)
     return `${String(h + effectiveDuration).padStart(2, '0')}:00`
   }
-
-  const totalPrice = room && devices
-    ? room.pricePerHour * devices.length * effectiveDuration
-    : 0
 
   const handleTimeSelect = (time: string) => {
     setSelectedTime(time)
@@ -87,7 +77,6 @@ export default function BookingStepDateTime({ bookingData, onComplete, onBack }:
       date: selectedDate,
       startTime: selectedTime,
       durationHours: effectiveDuration,
-      totalPrice,
     })
   }
 
@@ -98,12 +87,9 @@ export default function BookingStepDateTime({ bookingData, onComplete, onBack }:
           Pick a Date & Time
         </h2>
         <p className="text-[#9BA3B7]">
-          Select your session time in{' '}
-          <span className="text-[#F5F6FA] font-medium">{room?.name}</span>
-          {devices && devices.length > 0 && (
-            <> for <span className="text-[#7C5CFF] font-medium">{devices.length} device{devices.length !== 1 ? 's' : ''}</span></>
-          )}
-          .
+          Select your session date and time in{' '}
+          <span className="text-[#F5F6FA] font-medium">{room?.name}</span>.
+          You&apos;ll choose devices in the next step.
         </p>
       </div>
 
@@ -188,27 +174,25 @@ export default function BookingStepDateTime({ bookingData, onComplete, onBack }:
           >
             {timeSlots.map((time) => {
               const past = isSlotPast(time)
-              const booked = isSlotBlocked(time)
-              const disabled = past || booked
               const isSelected = selectedTime === time
 
               return (
                 <button
                   key={time}
-                  disabled={disabled}
+                  disabled={past}
                   onClick={() => handleTimeSelect(time)}
                   className={`shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 min-h-[44px] ${
-                    disabled
+                    past
                       ? 'bg-[#FF5C7A]/10 text-[#FF5C7A]/50 border border-[#FF5C7A]/20 cursor-not-allowed'
                       : isSelected
                       ? 'bg-[#7C5CFF] text-white glow-violet-sm'
                       : 'bg-[#1B2130] text-[#9BA3B7] border border-[#262D3D] hover:border-[#7C5CFF]/40 hover:text-[#F5F6FA]'
                   }`}
                   aria-pressed={isSelected}
-                  aria-disabled={disabled}
+                  aria-disabled={past}
                   style={{ fontFamily: 'var(--font-mono)' }}
                 >
-                  {time}
+                  {formatTime12(time)}
                 </button>
               )
             })}
@@ -217,10 +201,6 @@ export default function BookingStepDateTime({ bookingData, onComplete, onBack }:
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded bg-[#7C5CFF]/20 border border-[#7C5CFF]/40" aria-hidden="true" />
               Available
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded bg-[#FF5C7A]/10 border border-[#FF5C7A]/20" aria-hidden="true" />
-              Devices booked
             </span>
             {isToday && (
               <span className="flex items-center gap-1.5">
@@ -237,9 +217,9 @@ export default function BookingStepDateTime({ bookingData, onComplete, onBack }:
         <div className="p-6 rounded-2xl bg-[#131824] border border-[#262D3D] mb-6">
           <h3 className="text-sm font-semibold text-[#F5F6FA] mb-4" style={{ fontFamily: 'var(--font-display)' }}>
             Session Duration
-            {maxDuration < 6 && (
+            {maxDuration < 8 && (
               <span className="ml-2 text-xs font-normal text-[#9BA3B7]">
-                (max {maxDuration}h — conflicts with upcoming reservations)
+                (max {maxDuration}h)
               </span>
             )}
           </h3>
@@ -265,19 +245,13 @@ export default function BookingStepDateTime({ bookingData, onComplete, onBack }:
             <div className="flex items-center justify-between text-sm">
               <span className="text-[#9BA3B7]">Session</span>
               <span className="text-[#F5F6FA] font-medium" style={{ fontFamily: 'var(--font-mono)' }}>
-                {selectedTime} &ndash; {endTime()}
+                {formatTime12(selectedTime)} &ndash; {formatTime12(endTime())}
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-[#9BA3B7]">Devices × rate</span>
+              <span className="text-[#9BA3B7]">Duration</span>
               <span className="text-[#F5F6FA] font-medium" style={{ fontFamily: 'var(--font-mono)' }}>
-                {devices?.length ?? 0} × ${room?.pricePerHour}/hr × {effectiveDuration}h
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm border-t border-[#262D3D] pt-2">
-              <span className="text-[#9BA3B7]">Total price</span>
-              <span className="text-[#7C5CFF] font-bold text-lg" style={{ fontFamily: 'var(--font-mono)' }}>
-                ${totalPrice}
+                {effectiveDuration} hour{effectiveDuration !== 1 ? 's' : ''}
               </span>
             </div>
           </div>
