@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth'
 import { getDb } from '@/lib/mongodb'
+import { ObjectId } from 'mongodb'
 
 export async function GET(request: Request) {
   try {
@@ -19,14 +20,14 @@ export async function GET(request: Request) {
     const db = await getDb()
     const bookings = await db
       .collection('bookings')
-      .find({ userId: payload.userId })
+      .find({ userId: new ObjectId(payload.userId) })
       .sort({ createdAt: -1 })
       .toArray()
 
     const roomIds = [...new Set(bookings.map((b) => b.roomId.toString()))]
     const rooms = await db
       .collection('rooms')
-      .find({ _id: { $in: roomIds.map((id) => id) } })
+      .find({ _id: { $in: roomIds.map((id) => new ObjectId(id)) } })
       .toArray()
     const roomMap = new Map(rooms.map((r) => [r._id.toString(), r]))
 
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
           : undefined,
         deviceIds: b.deviceIds.map((d: unknown) => (d && typeof d === 'object' ? d.toString() : d)),
         deviceCount: b.deviceCount,
-        bookingDate: b.bookingDate?.toISOString?.() ?? b.bookingDate,
+        bookingDate: b.bookingDate?.toISOString?.()?.split('T')[0] ?? b.bookingDate,
         startTime: b.startTime,
         endTime: b.endTime,
         durationHours: b.durationHours,

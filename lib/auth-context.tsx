@@ -2,16 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import type { ReactNode } from 'react'
-
-interface User {
-  _id: string
-  name: string
-  email: string
-  role: string
-  phone?: string
-  isVerified: boolean
-  loyaltyPoints: number
-}
+import type { User } from '@/lib/types'
 
 interface AuthContextType {
   user: User | null

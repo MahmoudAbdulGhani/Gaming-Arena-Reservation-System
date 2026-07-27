@@ -55,7 +55,6 @@ export default function Footer() {
                 { label: 'Rooms', href: '/rooms' },
                 { label: 'Book a Session', href: '/booking' },
                 { label: 'Dashboard', href: '/dashboard' },
-                { label: 'Admin Panel', href: '/admin' },
               ].map(({ label, href }) => (
                 <li key={href}>
                   <Link

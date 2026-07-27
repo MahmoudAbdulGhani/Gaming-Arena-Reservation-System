@@ -11,10 +11,11 @@ type TabId = 'overview' | 'upcoming' | 'history' | 'profile'
 
 interface DashboardTabsProps {
   user: User | null
+  initialTab?: TabId
 }
 
-export default function DashboardTabs({ user }: DashboardTabsProps) {
-  const [activeTab, setActiveTab] = useState<TabId>('overview')
+export default function DashboardTabs({ user, initialTab }: DashboardTabsProps) {
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'overview')
   const [bookings, setBookings] = useState<Booking[]>([])
   const [bookingsLoading, setBookingsLoading] = useState(true)
 
@@ -35,13 +36,27 @@ export default function DashboardTabs({ user }: DashboardTabsProps) {
       .finally(() => setBookingsLoading(false))
   }, [])
 
-  function updateBooking(bookingId: string, changes: Partial<Booking>) {
-  setBookings((prevBookings) =>
-    prevBookings.map((booking) =>
-      booking._id === bookingId ? { ...booking, ...changes } : booking
-    )
-  )
-}
+  async function updateBooking(bookingId: string, changes: Partial<Booking>) {
+    const token = localStorage.getItem('gz_token')
+    if (!token) return
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(changes),
+      })
+      if (!res.ok) return
+      const updated = await res.json()
+      setBookings((prev) =>
+        prev.map((b) => (b._id === bookingId ? { ...b, ...updated } : b))
+      )
+    } catch {
+      // silently fail — local state stays unchanged
+    }
+  }
 
   const upcomingCount = bookings.filter(
   (b) => b.status === 'pending' || b.status === 'confirmed'

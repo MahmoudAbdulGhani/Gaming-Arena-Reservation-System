@@ -148,6 +148,7 @@ function AddRoomModal({ onSave, onClose }: { onSave: (data: RoomFormData) => voi
             >
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
+              <option value="maintenance">Maintenance</option>
             </select>
           </div>
           <div>
@@ -271,12 +272,26 @@ function RoomEditModal({ room, onSave, onClose }: { room: { id: string; name: st
   )
 }
 
-function ConfirmModal({ message, onConfirm, onCancel }: { message: string; onConfirm: () => void; onCancel: () => void }) {
+function ConfirmModal({
+  title,
+  message,
+  confirmText,
+  confirmButtonClassName,
+  onConfirm,
+  onCancel,
+}: {
+  title: string
+  message: string
+  confirmText: string
+  confirmButtonClassName?: string
+  onConfirm: () => void
+  onCancel: () => void
+}) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onCancel}>
       <div className="bg-[#12121a] border border-[#23232f] rounded-[16px] w-full max-w-sm mx-4 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>Confirm Delete</h3>
+          <h3 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>{title}</h3>
           <button onClick={onCancel} className="p-1.5 rounded-[8px] text-[#6b6b7b] hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent">
             <X className="w-4 h-4" />
           </button>
@@ -286,9 +301,156 @@ function ConfirmModal({ message, onConfirm, onCancel }: { message: string; onCon
           <button onClick={onCancel} className="flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-[#9a9aab] border border-[#23232f] bg-transparent hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer">
             Cancel
           </button>
-          <button onClick={onConfirm} className="flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-white border-none cursor-pointer bg-[#f25c78] hover:bg-[#d94e6a] transition-all">
-            Delete
+          <button onClick={onConfirm} className={`flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-white border-none cursor-pointer transition-all ${confirmButtonClassName || 'bg-[#f25c78] hover:bg-[#d94e6a]'}`}>
+            {confirmText}
           </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface DeviceFormData {
+  roomId: string
+  deviceLabel: string
+  specs: string
+  status: string
+}
+
+function AddDeviceModal({ rooms, onSave, onClose }: { rooms: Room[]; onSave: (data: DeviceFormData) => void; onClose: () => void }) {
+  const [roomId, setRoomId] = useState(rooms[0]?._id ?? '')
+  const [deviceLabel, setDeviceLabel] = useState('')
+  const [specs, setSpecs] = useState('')
+  const [status, setStatus] = useState('available')
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-[#12121a] border border-[#23232f] rounded-[16px] w-full max-w-sm mx-4 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>Add Device</h3>
+          <button onClick={onClose} className="p-1.5 rounded-[8px] text-[#6b6b7b] hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Room</label>
+            <select
+              value={roomId}
+              onChange={(e) => setRoomId(e.target.value)}
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer"
+            >
+              {rooms.map((r) => <option key={r._id} value={r._id}>{r.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Device Label</label>
+            <input
+              type="text"
+              value={deviceLabel}
+              onChange={(e) => setDeviceLabel(e.target.value)}
+              placeholder="e.g. PC-01"
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Specs / Description</label>
+            <input
+              type="text"
+              value={specs}
+              onChange={(e) => setSpecs(e.target.value)}
+              placeholder="e.g. RTX 3080, 32GB RAM, i9-12900K"
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Status</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer"
+            >
+              <option value="available">Available</option>
+              <option value="booked">Booked</option>
+              <option value="maintenance">Maintenance</option>
+            </select>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-[#9a9aab] border border-[#23232f] bg-transparent hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer">
+              Cancel
+            </button>
+            <button
+              onClick={() => onSave({ roomId, deviceLabel, specs, status })}
+              className="flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-white border-none cursor-pointer btn-primary-gradient glow-violet transition-all duration-200"
+            >
+              Add Device
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function EditDeviceModal({ device, rooms, onSave, onClose }: { device: { _id: string; roomId: string; deviceLabel: string; specs: string; status: string }; rooms: Room[]; onSave: (id: string, data: DeviceFormData) => void; onClose: () => void }) {
+  const [deviceLabel, setDeviceLabel] = useState(device.deviceLabel)
+  const [specs, setSpecs] = useState(device.specs)
+  const [status, setStatus] = useState(device.status)
+  const room = rooms.find((r) => r._id === device.roomId)
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-[#12121a] border border-[#23232f] rounded-[16px] w-full max-w-sm mx-4 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>Edit Device</h3>
+          <button onClick={onClose} className="p-1.5 rounded-[8px] text-[#6b6b7b] hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div className="text-[13px] text-[#6b6b7b]">
+            Room: <span className="text-[#f5f5f7] font-medium">{room?.name || 'Unknown'}</span>
+          </div>
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Device Label</label>
+            <input
+              type="text"
+              value={deviceLabel}
+              onChange={(e) => setDeviceLabel(e.target.value)}
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Specs / Description</label>
+            <input
+              type="text"
+              value={specs}
+              onChange={(e) => setSpecs(e.target.value)}
+              placeholder="e.g. RTX 3080, 32GB RAM, i9-12900K"
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Status</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer"
+            >
+              <option value="available">Available</option>
+              <option value="booked">Booked</option>
+              <option value="maintenance">Maintenance</option>
+            </select>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-[#9a9aab] border border-[#23232f] bg-transparent hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer">
+              Cancel
+            </button>
+            <button
+              onClick={() => onSave(device._id, { roomId: device.roomId, deviceLabel, specs, status })}
+              className="flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-white border-none cursor-pointer btn-primary-gradient glow-violet transition-all duration-200"
+            >
+              Save
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -303,12 +465,26 @@ interface AdminUser extends User {
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [search, setSearch] = useState('')
+  const [customerFilters, setCustomerFilters] = useState<string[]>([])
+  const [customerOpen, setCustomerOpen] = useState(false)
+  const [roomFilter, setRoomFilter] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [amountMin, setAmountMin] = useState('')
+  const [amountMax, setAmountMax] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [paymentFilter, setPaymentFilter] = useState('')
   const [roomSearch, setRoomSearch] = useState('')
   const [userSearch, setUserSearch] = useState('')
   const [detailModal, setDetailModal] = useState<{ open: boolean; title: string; details: DetailItem[] }>({ open: false, title: '', details: [] })
   const [editingRoom, setEditingRoom] = useState<{ id: string; name: string; pricePerHour: number; type: string; images: string; status: string } | null>(null)
   const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null)
   const [showAddRoom, setShowAddRoom] = useState(false)
+  const [editingDevice, setEditingDevice] = useState<{ _id: string; roomId: string; deviceLabel: string; specs: string; status: string } | null>(null)
+  const [showAddDevice, setShowAddDevice] = useState(false)
+  const [deviceSearch, setDeviceSearch] = useState('')
+  const [deviceRoomFilter, setDeviceRoomFilter] = useState('')
+  const [deviceStatusFilter, setDeviceStatusFilter] = useState('')
 
   const [rooms, setRooms] = useState<Room[]>([])
   const [devices, setDevices] = useState<Device[]>([])
@@ -416,6 +592,7 @@ export default function AdminPage() {
   const handleApproveCash = useCallback(async (id: string) => {
     try {
       await apiFetch(`/api/admin/bookings/${id}/approve-cash`, { method: 'PATCH' })
+      setConfirmModal(null)
       setFeedback({ type: 'success', message: 'Cash payment approved' })
       await fetchData()
     } catch (err) {
@@ -445,6 +622,45 @@ export default function AdminPage() {
     }
   }, [fetchData])
 
+  const handleAddDevice = useCallback(async (data: DeviceFormData) => {
+    try {
+      await apiFetch('/api/admin/devices', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+      setFeedback({ type: 'success', message: 'Device added successfully' })
+      setShowAddDevice(false)
+      await fetchData()
+    } catch (err) {
+      setFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Failed to add device' })
+    }
+  }, [fetchData])
+
+  const handleEditDevice = useCallback(async (id: string, data: DeviceFormData) => {
+    try {
+      await apiFetch(`/api/admin/devices/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      })
+      setFeedback({ type: 'success', message: 'Device updated successfully' })
+      setEditingDevice(null)
+      await fetchData()
+    } catch (err) {
+      setFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Failed to update device' })
+    }
+  }, [fetchData])
+
+  const handleDeleteDevice = useCallback(async (id: string) => {
+    try {
+      await apiFetch(`/api/admin/devices/${id}`, { method: 'DELETE' })
+      setFeedback({ type: 'success', message: 'Device deleted successfully' })
+      setConfirmModal(null)
+      await fetchData()
+    } catch (err) {
+      setFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Failed to delete device' })
+    }
+  }, [fetchData])
+
   const availableDevices = devices.filter((d) => d.status === 'available').length
   const totalDeviceCount = devices.length
   const activeBookings = bookings.filter((b) => b.status === 'pending' || b.status === 'confirmed')
@@ -462,11 +678,36 @@ export default function AdminPage() {
   })
   const maxRev = Math.max(...revenueByType.map((r) => r.value), 1)
 
+  const customerNames = users.filter((u) => u.role === 'customer').map((u) => u.name).sort()
+
   const filteredBookings = bookings.filter((b) => {
+    if (statusFilter && b.status !== statusFilter) return false
+    if (paymentFilter && b.paymentStatus !== paymentFilter) return false
+    if (customerFilters.length && !customerFilters.includes((b as any).user?.name)) return false
+    if (roomFilter && b.roomId !== roomFilter && b.room?.name !== roomFilter) return false
+    if (dateFrom || dateTo) {
+      const norm = (s: string) => s.split('T')[0]
+      if (dateFrom && norm(b.bookingDate) < norm(dateFrom)) return false
+      if (dateTo && norm(b.bookingDate) > norm(dateTo)) return false
+    }
+    if (amountMin && b.totalPrice < Number(amountMin)) return false
+    if (amountMax && b.totalPrice > Number(amountMax)) return false
     if (!search) return true
     const q = search.toLowerCase()
-    const room = b.room?.name || ''
-    return room.toLowerCase().includes(q) || b.status.includes(q) || getDisplayId(b._id).toLowerCase().includes(q)
+    return getDisplayId(b._id).toLowerCase().includes(q)
+  })
+
+  const filteredDevices = devices.filter((d) => {
+    if (deviceStatusFilter && d.status !== deviceStatusFilter) return false
+    if (deviceRoomFilter) {
+      const room = rooms.find((r) => r._id === d.roomId)
+      if (room?.name !== deviceRoomFilter) return false
+    }
+    if (deviceSearch) {
+      const q = deviceSearch.toLowerCase()
+      if (!d.deviceLabel.toLowerCase().includes(q) && !(d.specs || '').toLowerCase().includes(q)) return false
+    }
+    return true
   })
 
   const filteredUsers = users.filter((u) => {
@@ -654,15 +895,117 @@ export default function AdminPage() {
             </div>
 
             <div className="px-5 py-4 border-b border-[#23232f]">
-              <div className="relative max-w-xs">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b6b7b]" />
+              <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+                <div className="relative flex-1 min-w-[160px] max-w-[200px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b6b7b]" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Booking code..."
+                    className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] pl-9 pr-4 py-2 text-[14px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-colors"
+                  />
+                </div>
+                <div className="relative min-w-[150px]">
+                  <button
+                    type="button"
+                    onClick={() => setCustomerOpen(!customerOpen)}
+                    className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-3 py-2 text-[14px] text-[#f5f5f7] text-left cursor-pointer flex items-center justify-between gap-1"
+                  >
+                    <span>{customerFilters.length ? `${customerFilters.length} selected` : 'All Customers'}</span>
+                    <span className="text-[#6b6b7b] text-[10px]">▼</span>
+                  </button>
+                  {customerOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setCustomerOpen(false)} />
+                      <div className="absolute top-full left-0 mt-1 z-50 bg-[#12121a] border border-[#23232f] rounded-[8px] p-2 min-w-[180px] max-h-[200px] overflow-y-auto shadow-xl">
+                        {customerNames.length === 0 ? (
+                          <div className="text-[#6b6b7b] text-[13px] px-2 py-1">No customers</div>
+                        ) : (
+                          customerNames.map((name) => {
+                            const checked = customerFilters.includes(name)
+                            return (
+                              <label key={name} className="flex items-center gap-2 px-2 py-1.5 rounded-[6px] text-[14px] text-[#f5f5f7] hover:bg-[#23232f] cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => {
+                                    setCustomerFilters((prev) =>
+                                      checked ? prev.filter((n) => n !== name) : [...prev, name]
+                                    )
+                                  }}
+                                  className="accent-[#7c6cf2]"
+                                />
+                                {name}
+                              </label>
+                            )
+                          })
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+                <select
+                  value={roomFilter}
+                  onChange={(e) => setRoomFilter(e.target.value)}
+                  className="bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-3 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer min-w-[130px]"
+                >
+                  <option value="">All Rooms</option>
+                  {rooms.map((r) => <option key={r._id} value={r.name}>{r.name}</option>)}
+                </select>
                 <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search bookings..."
-                  className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] pl-9 pr-4 py-2 text-[14px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-colors"
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-3 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors min-w-[140px]"
+                  title="From date"
                 />
+                <span className="text-[#6b6b7b]">-</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-3 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors min-w-[140px]"
+                  title="To date"
+                />
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    value={amountMin}
+                    onChange={(e) => setAmountMin(e.target.value)}
+                    placeholder="Min $"
+                    className="w-20 bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-3 py-2 text-[14px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-colors"
+                  />
+                  <span className="text-[#6b6b7b]">-</span>
+                  <input
+                    type="number"
+                    value={amountMax}
+                    onChange={(e) => setAmountMax(e.target.value)}
+                    placeholder="Max $"
+                    className="w-20 bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-3 py-2 text-[14px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-colors"
+                  />
+                </div>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-3 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer min-w-[130px]"
+                >
+                  <option value="">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+                <select
+                  value={paymentFilter}
+                  onChange={(e) => setPaymentFilter(e.target.value)}
+                  className="bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-3 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer min-w-[130px]"
+                >
+                  <option value="">All Payment</option>
+                  <option value="paid">Paid</option>
+                  <option value="unpaid">Unpaid</option>
+                  <option value="refunded">Refunded</option>
+                </select>
               </div>
             </div>
 
@@ -673,6 +1016,7 @@ export default function AdminPage() {
                   <tr className="border-b border-[#23232f]">
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Booking ID</th>
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Room</th>
+                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Customer</th>
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Devices</th>
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Date & Time</th>
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Duration</th>
@@ -698,6 +1042,10 @@ export default function AdminPage() {
                               {room && <div className="text-[12px] text-[#6b6b7b]">{typeLabels[room.type]}</div>}
                             </div>
                           </div>
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="text-[14px] text-[#f5f5f7]">{(b as any).user?.name || 'Unknown'}</div>
+                          {(b as any).user?.email && <div className="text-[12px] text-[#6b6b7b]">{(b as any).user?.email}</div>}
                         </td>
                         <td className="px-5 py-4">
                           <span className="text-[14px] text-[#f5f5f7] font-medium">{b.deviceCount}</span>
@@ -732,7 +1080,10 @@ export default function AdminPage() {
                               <button
                                 onClick={() => {
                                   setConfirmModal({
+                                    title: 'Approve Cash Payment',
                                     message: `Approve cash payment for booking ${getDisplayId(b._id)}? This will mark the payment as paid and confirm the booking.`,
+                                    confirmText: 'Approve',
+                                    confirmButtonClassName: 'bg-[#2fd18f] hover:bg-[#25b16f]',
                                     onConfirm: () => handleApproveCash(b._id),
                                   })
                                 }}
@@ -747,6 +1098,8 @@ export default function AdminPage() {
                                 title: `Booking Code ${getDisplayId(b._id)}`,
                                 details: [
                                   { label: 'Room', value: room?.name || 'N/A' },
+                                  { label: 'Customer', value: (b as any).user?.name || 'Unknown' },
+                                  { label: 'Email', value: (b as any).user?.email || '—' },
                                   { label: 'Devices', value: `${b.deviceCount}` },
                                   { label: 'Date', value: formatDate(b.bookingDate) },
                                   { label: 'Time', value: b.startTime },
@@ -776,7 +1129,13 @@ export default function AdminPage() {
                               <Eye className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => setConfirmModal({ message: `Are you sure you want to delete booking ${getDisplayId(b._id)}? This action cannot be undone.`, onConfirm: () => handleDeleteBooking(b._id) })}
+                              onClick={() => setConfirmModal({
+                                title: 'Confirm Delete',
+                                message: `Are you sure you want to delete booking ${getDisplayId(b._id)}? This action cannot be undone.`,
+                                confirmText: 'Delete',
+                                confirmButtonClassName: 'bg-[#f25c78] hover:bg-[#d94e6a]',
+                                onConfirm: () => handleDeleteBooking(b._id),
+                              })}
                               className="p-1.5 rounded-[6px] text-[#f25c78]/60 hover:text-[#f25c78] hover:bg-[#f25c78]/10 transition-all cursor-pointer border-none bg-transparent"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -804,7 +1163,10 @@ export default function AdminPage() {
                           <button
                             onClick={() => {
                               setConfirmModal({
+                                title: 'Approve Cash Payment',
                                 message: `Approve cash payment for booking ${getDisplayId(b._id)}?`,
+                                confirmText: 'Approve',
+                                confirmButtonClassName: 'bg-[#2fd18f] hover:bg-[#25b16f]',
                                 onConfirm: () => handleApproveCash(b._id),
                               })
                             }}
@@ -819,6 +1181,8 @@ export default function AdminPage() {
                             title: `Booking Code ${getDisplayId(b._id)}`,
                             details: [
                               { label: 'Room', value: room?.name || 'N/A' },
+                              { label: 'Customer', value: (b as any).user?.name || 'Unknown' },
+                              { label: 'Email', value: (b as any).user?.email || '—' },
                               { label: 'Devices', value: `${b.deviceCount}` },
                               { label: 'Date', value: formatDate(b.bookingDate) },
                               { label: 'Time', value: b.startTime },
@@ -847,6 +1211,7 @@ export default function AdminPage() {
                         {room && <div className="text-[12px] text-[#6b6b7b]">{typeLabels[room.type]}</div>}
                       </div>
                     </div>
+                    <div className="text-[13px] text-[#f5f5f7]">{(b as any).user?.name || 'Unknown'}</div>
                     <div className="flex items-center justify-between text-[13px]">
                       <span className="text-[#6b6b7b]">{formatDate(b.bookingDate)} · {b.startTime} · {b.durationHours}h</span>
                       <span className="font-bold text-[#f5f5f7]">${b.totalPrice}</span>
@@ -902,9 +1267,13 @@ export default function AdminPage() {
                   <div key={room._id} className="bg-[#0a0a0f] border border-[#23232f] rounded-[14px] overflow-hidden">
                     <div className="relative">
                       <img src={room.images?.[0] || '/images/room-pc.png'} alt="" className="w-full h-32 object-cover" />
-                      <span className={`absolute top-3 left-3 text-[11px] px-2.5 py-1 rounded-full font-semibold inline-flex items-center gap-1.5 ${isAvail ? 'bg-[#2fd18f]/80 text-white' : 'bg-[#f25c78]/80 text-white'}`}>
+                      <span className={`absolute top-3 left-3 text-[11px] px-2.5 py-1 rounded-full font-semibold inline-flex items-center gap-1.5 ${
+                        room.status === 'active' ? 'bg-[#2fd18f]/80 text-white' :
+                        room.status === 'maintenance' ? 'bg-[#f2a13c]/80 text-white' :
+                        'bg-[#f25c78]/80 text-white'
+                      }`}>
                         <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                        {isAvail ? 'Available' : 'Reserved'}
+                        {room.status.charAt(0).toUpperCase() + room.status.slice(1)}
                       </span>
                       <span className="absolute top-3 right-3 text-[11px] px-2.5 py-1 rounded-full font-semibold bg-black/60 text-[#f5f5f7]">
                         {stat.available}/{stat.total}
@@ -951,6 +1320,43 @@ export default function AdminPage() {
           <div className="bg-[#12121a] border border-[#23232f] rounded-[14px] overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#23232f]">
               <h2 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>Device Management</h2>
+              <button onClick={() => setShowAddDevice(true)} className="inline-flex items-center gap-2 px-[16px] py-[9px] rounded-[10px] text-[13px] font-semibold text-white border-none cursor-pointer btn-primary-gradient glow-violet transition-all duration-200">
+                <Plus className="w-4 h-4" />
+                Add Device
+              </button>
+            </div>
+
+            <div className="px-5 py-4 border-b border-[#23232f]">
+              <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+                <div className="relative flex-1 min-w-[160px] max-w-[200px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b6b7b]" />
+                  <input
+                    type="text"
+                    value={deviceSearch}
+                    onChange={(e) => setDeviceSearch(e.target.value)}
+                    placeholder="Search device..."
+                    className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] pl-9 pr-4 py-2 text-[14px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-colors"
+                  />
+                </div>
+                <select
+                  value={deviceRoomFilter}
+                  onChange={(e) => setDeviceRoomFilter(e.target.value)}
+                  className="bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-3 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer min-w-[130px]"
+                >
+                  <option value="">All Rooms</option>
+                  {rooms.map((r) => <option key={r._id} value={r.name}>{r.name}</option>)}
+                </select>
+                <select
+                  value={deviceStatusFilter}
+                  onChange={(e) => setDeviceStatusFilter(e.target.value)}
+                  className="bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-3 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer min-w-[130px]"
+                >
+                  <option value="">All Status</option>
+                  <option value="available">Available</option>
+                  <option value="booked">Booked</option>
+                  <option value="maintenance">Maintenance</option>
+                </select>
+              </div>
             </div>
 
             {/* Desktop table */}
@@ -963,10 +1369,11 @@ export default function AdminPage() {
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Specs</th>
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Status</th>
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Added</th>
+                    <th className="text-right px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {devices.map((d) => {
+                  {filteredDevices.map((d) => {
                     const room = rooms.find((r) => r._id === d.roomId)
                     return (
                       <tr key={d._id} className="border-b border-[#23232f] last:border-b-0 hover:bg-[#0a0a0f]/50 transition-colors">
@@ -996,6 +1403,22 @@ export default function AdminPage() {
                         <td className="px-5 py-4">
                           <div className="text-[13px] text-[#6b6b7b]">{new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
                         </td>
+                        <td className="px-5 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => setEditingDevice({ _id: d._id, roomId: d.roomId, deviceLabel: d.deviceLabel, specs: d.specs ?? '', status: d.status })}
+                              className="p-1.5 rounded-[6px] text-[#9a9aab] hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setConfirmModal({ message: `Are you sure you want to delete device "${d.deviceLabel}"? This action cannot be undone.`, onConfirm: () => handleDeleteDevice(d._id) })}
+                              className="p-1.5 rounded-[6px] text-[#f25c78]/60 hover:text-[#f25c78] hover:bg-[#f25c78]/10 transition-all cursor-pointer border-none bg-transparent"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     )
                   })}
@@ -1005,7 +1428,7 @@ export default function AdminPage() {
 
             {/* Mobile cards */}
             <div className="block md:hidden divide-y divide-[#23232f]">
-              {devices.map((d) => {
+              {filteredDevices.map((d) => {
                 const room = rooms.find((r) => r._id === d.roomId)
                 return (
                   <div key={d._id} className="px-4 py-4 space-y-2">
@@ -1019,13 +1442,27 @@ export default function AdminPage() {
                           <div className="text-[12px] text-[#6b6b7b]">{room?.name || 'Unknown Room'}</div>
                         </div>
                       </div>
-                      <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
-                        d.status === 'available' ? 'bg-[#2fd18f]/15 text-[#2fd18f]' :
-                        d.status === 'booked' ? 'bg-[#6c8cf5]/15 text-[#6c8cf5]' :
-                        'bg-[#f2a13c]/15 text-[#f2a13c]'
-                      }`}>
-                        {d.status.charAt(0).toUpperCase() + d.status.slice(1)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
+                          d.status === 'available' ? 'bg-[#2fd18f]/15 text-[#2fd18f]' :
+                          d.status === 'booked' ? 'bg-[#6c8cf5]/15 text-[#6c8cf5]' :
+                          'bg-[#f2a13c]/15 text-[#f2a13c]'
+                        }`}>
+                          {d.status.charAt(0).toUpperCase() + d.status.slice(1)}
+                        </span>
+                        <button
+                          onClick={() => setEditingDevice({ _id: d._id, roomId: d.roomId, deviceLabel: d.deviceLabel, specs: d.specs ?? '', status: d.status })}
+                          className="p-1.5 rounded-[6px] text-[#9a9aab] hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setConfirmModal({ message: `Are you sure you want to delete device "${d.deviceLabel}"? This action cannot be undone.`, onConfirm: () => handleDeleteDevice(d._id) })}
+                          className="p-1.5 rounded-[6px] text-[#f25c78]/60 hover:text-[#f25c78] hover:bg-[#f25c78]/10 transition-all cursor-pointer border-none bg-transparent"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                     {d.specs && <div className="text-[12px] text-[#9a9aab]">{d.specs}</div>}
                     <div className="text-[12px] text-[#6b6b7b]">Added {new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
@@ -1035,10 +1472,15 @@ export default function AdminPage() {
             </div>
 
             <div className="px-5 py-4 border-t border-[#23232f] flex items-center gap-5">
-              <span className="text-[13px] text-[#9a9aab]">Showing {devices.length} of {devices.length} devices</span>
-              <span className="text-[13px] text-[#6b6b7b]">{devices.filter((d) => d.status === 'available').length} available</span>
-              <span className="text-[13px] text-[#6b6b7b]">{devices.filter((d) => d.status === 'booked').length} booked</span>
+              <span className="text-[13px] text-[#9a9aab]">Showing {filteredDevices.length} of {devices.length} devices</span>
+              <span className="text-[13px] text-[#6b6b7b]">{filteredDevices.filter((d) => d.status === 'available').length} available</span>
+              <span className="text-[13px] text-[#6b6b7b]">{filteredDevices.filter((d) => d.status === 'booked').length} booked</span>
             </div>
+
+            {showAddDevice && <AddDeviceModal rooms={rooms} onSave={handleAddDevice} onClose={() => setShowAddDevice(false)} />}
+            {editingDevice && (
+              <EditDeviceModal device={editingDevice} rooms={rooms} onSave={handleEditDevice} onClose={() => setEditingDevice(null)} />
+            )}
           </div>
         )}
 
@@ -1126,6 +1568,7 @@ export default function AdminPage() {
                                   title: u.name,
                                   details: [
                                     { label: 'Email', value: u.email },
+                                    { label: 'Phone', value: u.phone || '—' },
                                     {
                                       label: 'Role',
                                       value: u.role === 'admin' ? 'Admin' : 'User',
@@ -1183,6 +1626,7 @@ export default function AdminPage() {
                             title: u.name,
                             details: [
                               { label: 'Email', value: u.email },
+                              { label: 'Phone', value: u.phone || '—' },
                               { label: 'Role', value: u.role === 'admin' ? 'Admin' : 'User', color: u.role === 'admin' ? '#7c6cf2' : '#9a9aab' },
                               { label: 'Bookings', value: `${u.bookings}` },
                               { label: 'Total Spent', value: `$${u.totalSpent}` },
@@ -1229,7 +1673,7 @@ export default function AdminPage() {
         )}
       </div>
       {showAddRoom && <AddRoomModal onSave={handleAddRoom} onClose={() => setShowAddRoom(false)} />}
-      {confirmModal && <ConfirmModal message={confirmModal.message} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(null)} />}
+      {confirmModal && <ConfirmModal title={confirmModal.title} message={confirmModal.message} confirmText={confirmModal.confirmText} confirmButtonClassName={confirmModal.confirmButtonClassName} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(null)} />}
       {editingRoom && <RoomEditModal room={editingRoom} onSave={handleEditRoom} onClose={() => setEditingRoom(null)} />}
       <DetailModal open={detailModal.open} onClose={() => setDetailModal({ open: false, title: '', details: [] })} title={detailModal.title} details={detailModal.details} />
     </div>

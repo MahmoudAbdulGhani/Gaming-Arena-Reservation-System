@@ -50,8 +50,7 @@ export function hasSlotConflict(
 }
 
 export function isNoShow(booking: Booking): boolean {
+  if (booking.status !== 'pending') return false
   const startsAt = new Date(`${booking.bookingDate}T${booking.startTime}:00`)
-  const isStillUpcomingStatus = booking.status === 'pending' || booking.status === 'confirmed'
-
-  return isStillUpcomingStatus && startsAt.getTime() < Date.now()
+  return startsAt.getTime() < Date.now()
 }

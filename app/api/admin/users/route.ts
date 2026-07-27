@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getDbWithAdminCheck, errorResponse } from '@/lib/admin-helper'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const request = new Request('http://dummy')
     const { db } = await getDbWithAdminCheck(request)
     const users = await db.collection('users').find().sort({ name: 1 }).toArray()
     const data = users.map((u) => {

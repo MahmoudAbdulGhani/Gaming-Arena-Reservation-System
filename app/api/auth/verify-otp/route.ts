@@ -49,6 +49,8 @@ export async function POST(request: Request) {
         role: user.role,
         phone: user.phone || '',
         isVerified: true,
+        loyaltyPoints: user.loyaltyPoints ?? 0,
+        createdAt: user.createdAt?.toISOString?.() ?? '',
       },
     })
   } catch (error) {

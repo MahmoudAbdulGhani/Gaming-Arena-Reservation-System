@@ -88,15 +88,15 @@ export default function Navbar() {
               <div className="w-20 h-9 rounded-lg bg-[#1B2130] animate-pulse" />
             ) : user ? (
               <>
-                <Link
-                  href={user.role === 'admin' ? '/admin' : '/dashboard'}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-[#9BA3B7] hover:text-[#F5F6FA] hover:bg-[#1B2130] transition-all duration-200 whitespace-nowrap"
-                >
-                  <div className="w-7 h-7 rounded-md bg-[#7C5CFF]/20 flex items-center justify-center">
-                    <User className="w-4 h-4 text-[#7C5CFF]" />
-                  </div>
-                  {user.name.split(' ')[0]}
-                </Link>
+                  <Link
+                    href={user.role === 'admin' ? '/admin' : '/dashboard?tab=profile'}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-[#9BA3B7] hover:text-[#F5F6FA] hover:bg-[#1B2130] transition-all duration-200 whitespace-nowrap"
+                  >
+                    <div className="w-7 h-7 rounded-md bg-[#7C5CFF]/20 flex items-center justify-center">
+                      <User className="w-4 h-4 text-[#7C5CFF]" />
+                    </div>
+                    {user.name.split(' ')[0]}
+                  </Link>
                 <button
                   onClick={() => { logout(); router.push('/') }}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-[#9BA3B7] hover:text-[#FF5C7A] hover:bg-[#FF5C7A]/10 transition-all duration-200 whitespace-nowrap"
@@ -162,7 +162,7 @@ export default function Navbar() {
               ) : user ? (
                 <>
                   <Link
-                    href={user.role === 'admin' ? '/admin' : '/dashboard'}
+                    href={user.role === 'admin' ? '/admin' : '/dashboard?tab=profile'}
                     onClick={() => setMobileOpen(false)}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-[#9BA3B7] hover:text-[#F5F6FA] hover:bg-[#1B2130] transition-all duration-200"
                   >

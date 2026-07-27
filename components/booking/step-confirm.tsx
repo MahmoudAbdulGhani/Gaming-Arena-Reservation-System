@@ -40,6 +40,31 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
   const [paymentError, setPaymentError] = useState('')
   const [cardComplete, setCardComplete] = useState(false)
 
+  async function saveBooking(paymentMethod: string) {
+    const token = localStorage.getItem('gz_token')
+    const res = await fetch('/api/bookings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        roomId: bookingData.room?._id,
+        deviceIds: bookingData.devices?.map((d) => d._id),
+        bookingDate: bookingData.date,
+        startTime: bookingData.startTime,
+        durationHours: bookingData.durationHours,
+        totalPrice: bookingData.totalPrice,
+        paymentMethod,
+      }),
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      throw new Error(err.error || 'Failed to save booking')
+    }
+    return res.json()
+  }
+
   const handlePay = async () => {
     if (!agreedToTerms) { setPaymentError('You must agree to the terms'); return }
     setPaymentError('')
@@ -47,7 +72,7 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
 
     try {
       if (paymentMethod === 'cash') {
-        await new Promise((r) => setTimeout(r, 500))
+        await saveBooking('cash')
         onComplete({ paymentMethod: 'cash' })
         return
       }
@@ -86,6 +111,7 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
 
       if (stripeError) throw new Error(stripeError.message)
 
+      await saveBooking('card')
       onComplete({ paymentMethod: 'card' })
     } catch (err) {
       setPaymentError(err instanceof Error ? err.message : 'Payment failed')

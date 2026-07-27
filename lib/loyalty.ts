@@ -7,15 +7,14 @@ export const NO_SHOW_PENALTY = 100
 /**
  * Compute loyalty points from a user's booking history.
  *
- *  +10 for every completed booking
- *  -100 for every no-show (booking start time passed but status is still
- *       pending/confirmed — the user neither attended nor cancelled in time)
+ *  +10 for every confirmed or completed booking (paid sessions)
+ *  -100 for every no-show (unpaid pending booking past its start time)
  *
  * Points never drop below 0.
  */
 export function calculateLoyaltyPoints(bookings: Booking[]): number {
-  const completed = bookings.filter((b) => b.status === 'completed').length
+  const paid = bookings.filter((b) => b.status === 'confirmed' || b.status === 'completed').length
   const noShows = bookings.filter((b) => isNoShow(b)).length
 
-  return Math.max(0, completed * EARN_PER_COMPLETED - noShows * NO_SHOW_PENALTY)
+  return Math.max(0, paid * EARN_PER_COMPLETED - noShows * NO_SHOW_PENALTY)
 }
