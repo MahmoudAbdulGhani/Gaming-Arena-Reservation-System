@@ -37,11 +37,8 @@ Compute loyalty points from a user's booking history.*
 -50 for every no-show paid by cash (arena got nothing)*
 Points never drop below 0.*/
 export function calculateLoyaltyPoints(bookings: Booking[]): number {
-  const earnedPoints = bookings
-    .filter((b) => b.status === 'completed')
-    .reduce((sum, b) => sum + b.durationHours * EARN_PER_HOUR, 0)
-  const cardNoShows = bookings.filter((b) => isNoShow(b) && b.paymentStatus === 'paid').length
-  const cashNoShows = bookings.filter((b) => isNoShow(b) && b.paymentStatus !== 'paid').length
+  const completed = bookings.filter((b) => b.status === 'completed').length
+  const noShows = bookings.filter((b) => isNoShow(b)).length
 
-  return Math.max(0, earnedPoints - cardNoShows * CARD_NO_SHOW_PENALTY - cashNoShows * CASH_NO_SHOW_PENALTY)
+  return Math.max(0, completed * EARN_PER_COMPLETED - noShows * NO_SHOW_PENALTY)
 }

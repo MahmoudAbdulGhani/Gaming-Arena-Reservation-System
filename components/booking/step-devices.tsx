@@ -119,7 +119,7 @@ export default function BookingStepDevices({ bookingData, onBack, onComplete }: 
         <div className="flex-1 min-w-0">
           <span className="text-sm text-[#F5F6FA] font-medium">{room.name}</span>
           <span className="text-sm text-[#9BA3B7] ml-2">
-            &mdash; {availableCount} of {devices.length} devices free
+            &ndash; {availableCount} of {devices.length} devices free
           </span>
         </div>
         <span className="text-sm text-[#7C5CFF] font-bold shrink-0" style={{ fontFamily: 'var(--font-mono)' }}>
@@ -145,13 +145,12 @@ export default function BookingStepDevices({ bookingData, onBack, onComplete }: 
               disabled={disabled}
               aria-checked={isSelected}
               aria-disabled={disabled}
-              className={`relative text-left p-4 rounded-xl border transition-all duration-200 cursor-pointer ${
-                disabled
+              className={`relative text-left p-4 rounded-xl border transition-all duration-200 cursor-pointer ${disabled
                   ? cfg.cardBg + ' cursor-not-allowed'
                   : isSelected
-                  ? cfg.selectedBg
-                  : cfg.cardBg
-              }`}
+                    ? cfg.selectedBg
+                    : cfg.cardBg
+                }`}
             >
               {isSelected && !disabled && (
                 <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-[#7C5CFF] flex items-center justify-center">

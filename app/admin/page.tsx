@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
-import { Search, Plus, ExternalLink, Pencil, Eye, Trash2, X, Download, Lock, AlertCircle, CreditCard, Banknote, CheckCircle2 } from 'lucide-react'
+import { Search, Plus, Pencil, Eye, Trash2, X, Download, Lock, AlertCircle, CreditCard, Banknote, CheckCircle2 } from 'lucide-react'
 import Navbar from '@/components/navbar'
 import type { Device, RoomType, User, Room, Booking } from '@/lib/types'
 import { CardElement, useStripe, useElements, Elements } from '@stripe/react-stripe-js'
@@ -33,13 +33,17 @@ const typeLabels: Record<RoomType, string> = {
   private: 'Private Room',
 }
 
-const roomThumbs: Record<string, string> = {
-  r1: '/images/room-pc.png',
-  r2: '/images/room-pc.png',
-  r3: '/images/room-console.png',
-  r4: '/images/room-vr.png',
-  r5: '/images/room-private.png',
-  r6: '/images/room-private.png',
+const roomTypeFallback: Record<string, string> = {
+  pc: '/images/room-pc.png',
+  console: '/images/room-console.png',
+  vr: '/images/room-vr.png',
+  private: '/images/room-private.png',
+}
+
+function getRoomThumb(room?: Room): string {
+  if (room?.images?.length) return room.images[0]
+  if (room?.type) return roomTypeFallback[room.type] || '/images/room-pc.png'
+  return '/images/room-pc.png'
 }
 
 function getDisplayId(id: string) {
@@ -475,7 +479,7 @@ function CardPaymentForm({ clientSecret, totalPrice, onComplete, onError }: { cl
       </div>
       <div className="p-3 rounded-xl bg-[#7c6cf2]/10 border border-[#7c6cf2]/20">
         <p className="text-[11px] text-[#9a9aab] leading-relaxed">
-          Test mode &mdash; use card <span className="font-mono">4242 4242 4242 4242</span>, any future date, any CVC.
+          Test mode &ndash; use card <span className="font-mono">4242 4242 4242 4242</span>, any future date, any CVC.
         </p>
       </div>
       <div className="flex items-center justify-between pt-2 border-t border-[#23232f]">
@@ -820,6 +824,7 @@ export default function AdminPage() {
   const [dateTo, setDateTo] = useState('')
   const [amountMin, setAmountMin] = useState('')
   const [amountMax, setAmountMax] = useState('')
+  const [devicesFilter, setDevicesFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [paymentFilter, setPaymentFilter] = useState('')
   const [roomSearch, setRoomSearch] = useState('')
@@ -840,6 +845,10 @@ export default function AdminPage() {
   const [showAddDevice, setShowAddDevice] = useState(false)
   const [editingDevice, setEditingDevice] = useState<Device | null>(null)
   const [showAddReservation, setShowAddReservation] = useState(false)
+  const BOOKINGS_PER_PAGE = 10
+  const USERS_PER_PAGE = 10
+  const [bookingPage, setBookingPage] = useState(0)
+  const [userPage, setUserPage] = useState(0)
 
   const [rooms, setRooms] = useState<Room[]>([])
   const [devices, setDevices] = useState<Device[]>([])
@@ -854,6 +863,9 @@ export default function AdminPage() {
       return () => clearTimeout(t)
     }
   }, [feedback])
+
+  useEffect(() => { setBookingPage(0) }, [search, customerSearch, roomFilter, dateFrom, dateTo, amountMin, amountMax, devicesFilter, statusFilter, paymentFilter])
+  useEffect(() => { setUserPage(0) }, [userSearch, roleFilter, verifiedFilter, userBookingsMin, userBookingsMax, userSpentMin, userSpentMax])
 
   async function apiFetch(url: string, options?: RequestInit) {
     const token = localStorage.getItem('gz_token')
@@ -976,6 +988,7 @@ export default function AdminPage() {
   }, [fetchData])
 
   const handleApproveCash = useCallback(async (id: string) => {
+    setConfirmModal(null)
     try {
       await apiFetch(`/api/admin/bookings/${id}/approve-cash`, { method: 'PATCH' })
       setFeedback({ type: 'success', message: 'Cash payment approved' })
@@ -986,14 +999,13 @@ export default function AdminPage() {
   }, [fetchData])
 
   const handleRefund = useCallback(async (id: string) => {
+    setConfirmModal(null)
     try {
       await apiFetch(`/api/admin/bookings/${id}/refund`, { method: 'PATCH' })
       setFeedback({ type: 'success', message: 'Booking refunded successfully' })
-      setConfirmModal(null)
       await fetchData()
     } catch (err) {
       setFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Failed to refund booking' })
-      setConfirmModal(null)
     }
   }, [fetchData])
 
@@ -1082,10 +1094,12 @@ export default function AdminPage() {
 
   const revenueByType = (['pc', 'console', 'vr', 'private'] as RoomType[]).map((type) => {
     const roomIds = rooms.filter((r) => r.type === type).map((r) => r._id)
-    const rev = bookings
-      .filter((b) => roomIds.includes(b.roomId) && (b.status === 'completed' || b.paymentStatus === 'paid'))
-      .reduce((s, b) => s + b.totalPrice, 0)
-    return { label: typeLabels[type], value: rev, color: typeColors[type] }
+    const paid = bookings.filter((b) => roomIds.includes(b.roomId) && (b.status === 'completed' || b.paymentStatus === 'paid'))
+    const rev = paid.reduce((s, b) => s + b.totalPrice, 0)
+    const count = paid.length
+    const avg = count > 0 ? Math.round(rev / count) : 0
+    const pct = totalRevenue > 0 ? Math.round((rev / totalRevenue) * 100) : 0
+    return { label: typeLabels[type], value: rev, color: typeColors[type], count, avg, pct }
   })
   const maxRev = Math.max(...revenueByType.map((r) => r.value), 1)
 
@@ -1099,10 +1113,13 @@ export default function AdminPage() {
     if (dateTo && new Date(b.bookingDate) > new Date(dateTo + 'T23:59:59')) return false
     if (amountMin && b.totalPrice < parseFloat(amountMin)) return false
     if (amountMax && b.totalPrice > parseFloat(amountMax)) return false
+    if (devicesFilter && !String(b.deviceCount).includes(devicesFilter)) return false
     if (statusFilter && b.status !== statusFilter) return false
     if (paymentFilter && b.paymentStatus !== paymentFilter) return false
     return true
   })
+  const bookingTotalPages = Math.ceil(filteredBookings.length / BOOKINGS_PER_PAGE)
+  const pagedBookings = filteredBookings.slice(bookingPage * BOOKINGS_PER_PAGE, (bookingPage + 1) * BOOKINGS_PER_PAGE)
 
   const filteredUsers = users.filter((u) => {
     if (deletedUserIds.includes(u._id)) return false
@@ -1119,6 +1136,8 @@ export default function AdminPage() {
     if (userSpentMax && (u.totalSpent ?? 0) > parseFloat(userSpentMax)) return false
     return true
   })
+  const userTotalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE)
+  const pagedUsers = filteredUsers.slice(userPage * USERS_PER_PAGE, (userPage + 1) * USERS_PER_PAGE)
 
   const filteredRooms = rooms.filter((r) => {
     if (!roomSearch) return true
@@ -1128,35 +1147,15 @@ export default function AdminPage() {
 
   const tabs = [
     { id: 'overview', label: 'Overview', badge: null },
-    { id: 'bookings', label: 'Bookings', badge: bookings.length },
+    { id: 'bookings', label: 'Bookings', badge: null },
     { id: 'rooms', label: 'Rooms', badge: null },
-    { id: 'users', label: 'Users', badge: 5 },
+    { id: 'users', label: 'Users', badge: null },
   ]
 
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
       <Navbar />
       <div className="px-4 sm:px-6 lg:px-10 py-8 pt-24" style={{ maxWidth: 1400, margin: '0 auto' }}>
-        {/* Breadcrumb */}
-        <div className="text-[13px] text-[#6b6b7b] mb-1.5">
-          <Link href="/" className="text-[#7c6cf2] no-underline">GameZone</Link> › Admin Panel
-        </div>
-
-        {/* Top row */}
-        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-7">
-          <h1 className="text-[28px] sm:text-[32px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>Admin Panel</h1>
-          <div className="flex gap-3 w-full sm:w-auto">
-            <Link href="/" className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-[18px] py-[11px] rounded-[10px] text-[14px] font-semibold border border-[#23232f] bg-[#12121a] text-[#f5f5f7] hover:bg-[#1a1a26] transition-all no-underline">
-              <ExternalLink className="w-4 h-4" />
-              View Site
-            </Link>
-            <button onClick={() => setShowAddReservation(true)} className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-[18px] py-[11px] rounded-[10px] text-[14px] font-semibold text-white no-underline cursor-pointer btn-primary-gradient glow-violet transition-all duration-200 border-none">
-              <Plus className="w-4 h-4" />
-              Add Reservation
-            </button>
-          </div>
-        </div>
-
         {/* Tabs */}
         <div className="flex gap-4 sm:gap-7 border-b border-[#23232f] mb-7 overflow-x-auto scrollbar-none">
           {tabs.map((tab) => (
@@ -1208,7 +1207,7 @@ export default function AdminPage() {
                   const statusColor = room.status === 'active' ? 'bg-[#2fd18f]/15 text-[#2fd18f]' : room.status === 'maintenance' ? 'bg-[#f2a13c]/15 text-[#f2a13c]' : 'bg-[#f25c78]/15 text-[#f25c78]'
                   return (
                     <div key={room._id} className="flex items-center py-3 border-b border-[#23232f] last:border-b-0 gap-2">
-                      <img src={roomThumbs[room._id]} alt="" className="w-11 h-11 rounded-[10px] object-cover shrink-0" />
+                      <img src={getRoomThumb(room)} alt="" className="w-11 h-11 rounded-[10px] object-cover shrink-0" />
                       <div className="min-w-0">
                         <div className="text-[14.5px] font-semibold text-[#f5f5f7] truncate">{room.name}</div>
                         <div className="text-[12.5px] text-[#6b6b7b] mt-0.5">{typeLabels[room.type]}</div>
@@ -1233,7 +1232,7 @@ export default function AdminPage() {
                 </div>
                 {bookings.slice(0, 5).map((b) => (
                   <div key={b._id} className="flex items-center py-3 border-b border-[#23232f] last:border-b-0">
-                    <img src={roomThumbs[b.roomId] || '/images/room-pc.png'} alt="" className="w-11 h-11 rounded-[10px] object-cover mr-3.5 shrink-0" />
+                    <img src={getRoomThumb(b.room)} alt="" className="w-11 h-11 rounded-[10px] object-cover mr-3.5 shrink-0" />
                     <div>
                       <div className="text-[14.5px] font-semibold text-[#f5f5f7]">{b.room?.name || 'Room'}</div>
                       <div className="text-[12.5px] text-[#6b6b7b] mt-0.5">{formatDate(b.bookingDate)} · {b.deviceCount} device{b.deviceCount > 1 ? 's' : ''}</div>
@@ -1250,16 +1249,30 @@ export default function AdminPage() {
             </div>
 
             <div className="bg-[#12121a] border border-[#23232f] rounded-[14px] p-[22px]">
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex justify-between items-center mb-5">
                 <div className="text-[16px] font-bold text-[#f5f5f7]" style={{ fontFamily: 'var(--font-display)' }}>Revenue by Room Type</div>
+                <div className="text-[13px] text-[#6b6b7b]">Total: <span className="text-[#f5f5f7] font-semibold">${totalRevenue.toLocaleString()}</span></div>
               </div>
-              {revenueByType.map((r) => (
-                <div key={r.label} className="flex items-center gap-4 mb-5 last:mb-0">
-                  <div className="text-[14px] text-[#9a9aab] text-right min-w-[110px]">{r.label}</div>
-                  <div className="h-[26px] rounded-[6px] flex items-center px-3" style={{ width: `${(r.value / maxRev) * 100}%`, background: r.color, minWidth: r.value > 0 ? 40 : 0 }} />
-                  <div className="text-[14px] font-semibold text-[#f5f5f7] min-w-[70px]">${r.value}</div>
-                </div>
-              ))}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {revenueByType.map((r) => (
+                  <div key={r.label} className="bg-[#0a0a0f] border border-[#23232f] rounded-[10px] p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: r.color }} />
+                        <span className="text-[14px] font-semibold text-[#f5f5f7]">{r.label}</span>
+                      </div>
+                      <span className="text-[13px] font-bold" style={{ color: r.color }}>${r.value.toLocaleString()}</span>
+                    </div>
+                    <div className="h-[6px] rounded-full bg-[#23232f] overflow-hidden mb-3">
+                      <div className="h-full rounded-full" style={{ width: `${r.pct}%`, background: r.color }} />
+                    </div>
+                    <div className="flex items-center justify-between text-[12px] text-[#6b6b7b]">
+                      <span>{r.count} booking{r.count !== 1 ? 's' : ''}</span>
+                      <span>{r.pct}% of total</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </>
         )}
@@ -1269,13 +1282,6 @@ export default function AdminPage() {
           <div className="bg-[#12121a] border border-[#23232f] rounded-[14px] overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-[#23232f]">
               <h2 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>All Bookings</h2>
-              <button
-                  onClick={() => handleDownloadBookingsReport(bookings, rooms)}
-                  className="inline-flex items-center gap-2 px-[16px] py-[9px] rounded-[10px] text-[13px] font-semibold text-[#f5f5f7] border border-[#23232f] bg-[#0a0a0f] hover:bg-[#1a1a26] transition-all"
-               >
-                 <Download className="w-4 h-4" />
-                    Download Report
-              </button>
                 <button onClick={() => setShowAddReservation(true)} className="inline-flex items-center gap-2 px-[16px] py-[9px] rounded-[10px] text-[13px] font-semibold text-white no-underline cursor-pointer btn-primary-gradient glow-violet transition-all duration-200 border-none">
                   <Plus className="w-4 h-4" />
                   Add Reservation
@@ -1283,133 +1289,132 @@ export default function AdminPage() {
             </div>
 
             {/* Desktop table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full">
+            <div className="hidden md:block">
+              <table className="w-full" style={{ tableLayout: 'fixed' }}>
+                <colgroup>
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '10%' }} />
+                </colgroup>
                 <thead>
                   <tr className="border-b border-[#23232f]">
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Booking ID</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Room</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Customer</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Phone</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Devices</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Date & Time</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Duration</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Amount</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Status</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Payment</th>
-                    <th className="text-right px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Actions</th>
-                  </tr>
-                  <tr className="border-b border-[#23232f] bg-[#0e0e16]/60">
-                    <th className="px-3 py-2.5">
-                      <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ID or code..." className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">ID</div>
+                      <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search..." className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-all" />
                     </th>
-                    <th className="px-3 py-2.5">
-                      <select value={roomFilter} onChange={(e) => setRoomFilter(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all appearance-none cursor-pointer">
-                        <option value="">All rooms</option>
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Room</div>
+                      <select value={roomFilter} onChange={(e) => setRoomFilter(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-all appearance-none cursor-pointer">
+                        <option value="">All</option>
                         {rooms.map((r) => <option key={r._id} value={r.name}>{r.name}</option>)}
                       </select>
                     </th>
-                    <th className="px-3 py-2.5">
-                      <input type="text" value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} placeholder="Customer..." className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Customer</div>
+                      <input type="text" value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} placeholder="Search..." className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1 text-[11px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-all" />
                     </th>
-                    <th className="px-3 py-2.5"></th>
-                    <th className="px-3 py-2.5"></th>
-                    <th className="px-3 py-2.5">
-                      <div className="flex gap-1.5 items-center">
-                        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" title="From" />
-                        <span className="text-[#6b6b7b] text-[11px] shrink-0">–</span>
-                        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" title="To" />
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Devices</div>
+                      <input type="text" inputMode="numeric" value={devicesFilter} onChange={(e) => setDevicesFilter(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Qty..." className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1 text-[11px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-all" />
+                    </th>
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Date</div>
+                      <div className="flex flex-col gap-1">
+                        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1 text-[11px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-all" title="From" />
+                        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1 text-[11px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-all" title="To" />
                       </div>
                     </th>
-                    <th className="px-3 py-2.5"></th>
-                    <th className="px-3 py-2.5">
-                      <div className="flex gap-1.5 items-center">
-                        <input type="text" inputMode="numeric" value={amountMin} onChange={(e) => setAmountMin(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Min" className="w-full min-w-0 bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
-                        <span className="text-[#6b6b7b] text-[11px] shrink-0">–</span>
-                        <input type="text" inputMode="numeric" value={amountMax} onChange={(e) => setAmountMax(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Max" className="w-full min-w-0 bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Amount</div>
+                      <div className="flex gap-1">
+                        <input type="text" inputMode="numeric" value={amountMin} onChange={(e) => setAmountMin(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Min" className="w-1/2 min-w-0 bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[11px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-all" />
+                        <input type="text" inputMode="numeric" value={amountMax} onChange={(e) => setAmountMax(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Max" className="w-1/2 min-w-0 bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[11px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-all" />
                       </div>
                     </th>
-                    <th className="px-3 py-2.5">
-                      <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all appearance-none cursor-pointer">
-                        <option value="">All status</option>
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Status</div>
+                      <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-all appearance-none cursor-pointer">
+                        <option value="">All</option>
                         <option value="pending">Pending</option>
                         <option value="confirmed">Confirmed</option>
                         <option value="completed">Completed</option>
                         <option value="cancelled">Cancelled</option>
                       </select>
                     </th>
-                    <th className="px-3 py-2.5">
-                      <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all appearance-none cursor-pointer">
-                        <option value="">All payment</option>
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Payment</div>
+                      <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-all appearance-none cursor-pointer">
+                        <option value="">All</option>
                         <option value="paid">Paid</option>
                         <option value="unpaid">Unpaid</option>
                         <option value="refunded">Refunded</option>
                       </select>
                     </th>
-                    <th className="px-3 py-2.5"></th>
+                    <th className="px-3 py-3 text-center">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Actions</div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredBookings.map((b, i) => {
+                  {pagedBookings.map((b, i) => {
                     const room = rooms.find((r) => r._id === b.roomId)
                     return (
                       <tr key={b._id} className="border-b border-[#23232f] last:border-b-0 hover:bg-[#0a0a0f]/50 transition-colors">
-                        <td className="px-5 py-4">
-                          <span className="text-[13px] font-mono font-semibold text-[#f5f5f7]">{getDisplayId(b._id)}</span>
+                        <td className="px-3 py-3">
+                          <span className="text-[12px] font-mono font-semibold text-[#f5f5f7]">{getDisplayId(b._id)}</span>
                         </td>
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-3">
-                            <img src={roomThumbs[b.roomId] || '/images/room-pc.png'} alt="" className="w-9 h-9 rounded-[8px] object-cover shrink-0" />
-                            <div>
-                              <div className="text-[14px] font-medium text-[#f5f5f7]">{room?.name || 'Room'}</div>
-                              {room && <div className="text-[12px] text-[#6b6b7b]">{typeLabels[room.type]}</div>}
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-2">
+                            <img src={getRoomThumb(room)} alt="" className="w-8 h-8 rounded-[6px] object-cover shrink-0" />
+                            <div className="min-w-0">
+                              <div className="text-[13px] font-medium text-[#f5f5f7] truncate">{room?.name || 'Room'}</div>
+                              {room && <div className="text-[11px] text-[#6b6b7b]">{typeLabels[room.type]}</div>}
                             </div>
                           </div>
                         </td>
-                        <td className="px-5 py-4">
-                          <div className="text-[14px] text-[#f5f5f7]">{(b as any).user?.name || 'Unknown'}</div>
-                          {(b as any).user?.email && <div className="text-[12px] text-[#6b6b7b]">{(b as any).user?.email}</div>}
+                        <td className="px-3 py-3">
+                          <div className="text-[13px] text-[#f5f5f7] truncate">{(b as any).user?.name || 'Unknown'}</div>
+                          <div className="text-[11px] text-[#6b6b7b] truncate">{(b as any).user?.phone || (b as any).user?.email || '—'}</div>
                         </td>
-                        <td className="px-5 py-4">
-                          <span className="text-[14px] text-[#f5f5f7] font-mono">{(b as any).user?.phone || '—'}</span>
+                        <td className="px-3 py-3">
+                          <span className="text-[13px] text-[#f5f5f7] font-medium text-center block">{b.deviceCount}</span>
                         </td>
-                        <td className="px-5 py-4">
-                          <span className="text-[14px] text-[#f5f5f7] font-medium">{b.deviceCount}</span>
+                        <td className="px-3 py-3">
+                          <div className="text-[13px] text-[#f5f5f7]">{formatDate(b.bookingDate)}</div>
+                          <div className="text-[11px] text-[#6b6b7b]">{b.startTime} · {b.durationHours}h</div>
                         </td>
-                        <td className="px-5 py-4">
-                          <div className="text-[14px] text-[#f5f5f7]">{formatDate(b.bookingDate)}</div>
-                          <div className="text-[12px] text-[#6b6b7b]">{b.startTime}</div>
+                        <td className="px-3 py-3">
+                          <span className="text-[13px] font-bold text-[#f5f5f7] text-center block">${b.totalPrice}</span>
                         </td>
-                        <td className="px-5 py-4">
-                          <span className="text-[14px] text-[#f5f5f7]">{b.durationHours}h</span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className="text-[15px] font-bold text-[#f5f5f7]">${b.totalPrice}</span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className={`text-[12px] px-2.5 py-1 rounded-full font-semibold ${statusClass(b.status)}`}>
+                        <td className="px-3 py-3">
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${statusClass(b.status)}`}>
                             {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
                           </span>
                         </td>
-                       <td className="px-5 py-4">
-  <div className="flex items-center gap-2">
-    <span
-      className={`text-[12px] px-2.5 py-1 rounded-full font-semibold ${
-        b.paymentStatus === 'paid'
-          ? 'bg-[#2fd18f]/15 text-[#2fd18f]'
-          : b.paymentStatus === 'refunded'
-          ? 'bg-[#f25c78]/15 text-[#f25c78]'
-          : 'bg-[#6c8cf5]/15 text-[#6c8cf5]'
-      }`}
-    >
-      {b.paymentStatus.charAt(0).toUpperCase() + b.paymentStatus.slice(1)}
-    </span>
-    {b.paymentMethod === 'cash' && (
-      <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-[#f2a13c]/15 text-[#f2a13c]">Cash</span>
-    )}
-  </div>
-</td>
-                        <td className="px-5 py-4 text-right">
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
+                              b.paymentStatus === 'paid' ? 'bg-[#2fd18f]/15 text-[#2fd18f]' :
+                              b.paymentStatus === 'refunded' ? 'bg-[#f25c78]/15 text-[#f25c78]' :
+                              'bg-[#6c8cf5]/15 text-[#6c8cf5]'
+                            }`}>
+                              {b.paymentStatus.charAt(0).toUpperCase() + b.paymentStatus.slice(1)}
+                            </span>
+                            {b.paymentMethod === 'cash' && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-[#f2a13c]/15 text-[#f2a13c]">Cash</span>
+                            )}
+                            {b.paymentMethod === 'card' && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-[#6c8cf5]/15 text-[#6c8cf5]">Card</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
                             {b.paymentStatus === 'unpaid' && b.status === 'pending' && (
                               <button
@@ -1419,9 +1424,9 @@ export default function AdminPage() {
                                     onConfirm: () => handleApproveCash(b._id),
                                   })
                                 }}
-                                className="px-2 py-1 rounded-[6px] text-[11px] font-semibold text-[#2fd18f] bg-[#2fd18f]/10 hover:bg-[#2fd18f]/20 transition-all cursor-pointer border-none"
+                                className="px-2 py-1 rounded-[6px] text-[10px] font-semibold text-[#2fd18f] bg-[#2fd18f]/10 hover:bg-[#2fd18f]/20 transition-all cursor-pointer border-none whitespace-nowrap"
                               >
-                                Approve Cash
+                                Approve
                               </button>
                             )}
                             {b.paymentStatus === 'paid' && b.paymentMethod === 'card' && (
@@ -1489,6 +1494,29 @@ export default function AdminPage() {
               </table>
             </div>
 
+            {/* Desktop pagination */}
+            <div className="hidden md:flex items-center justify-between px-5 py-3 border-t border-[#23232f]">
+              <div className="flex items-center gap-4">
+                <span className="text-[13px] text-[#6b6b7b]">Showing {filteredBookings.length > 0 ? bookingPage * BOOKINGS_PER_PAGE + 1 : 0}–{Math.min((bookingPage + 1) * BOOKINGS_PER_PAGE, filteredBookings.length)} of {filteredBookings.length}</span>
+                <button
+                  onClick={() => handleDownloadBookingsReport(bookings, rooms)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[12px] font-semibold text-[#9a9aab] border border-[#23232f] bg-[#0a0a0f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40 transition-all cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download Report
+                </button>
+              </div>
+              {bookingTotalPages > 1 && (
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setBookingPage((p) => Math.max(0, p - 1))} disabled={bookingPage === 0} className="px-3 py-1.5 rounded-[6px] text-[13px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Prev</button>
+                  {Array.from({ length: bookingTotalPages }, (_, i) => (
+                    <button key={i} onClick={() => setBookingPage(i)} className={`w-8 h-8 rounded-[6px] text-[13px] font-medium transition-all cursor-pointer border ${bookingPage === i ? 'bg-[#7c6cf2] text-white border-[#7c6cf2]' : 'text-[#9a9aab] bg-[#0a0a0f] border-[#23232f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40'}`}>{i + 1}</button>
+                  ))}
+                  <button onClick={() => setBookingPage((p) => Math.min(bookingTotalPages - 1, p + 1))} disabled={bookingPage >= bookingTotalPages - 1} className="px-3 py-1.5 rounded-[6px] text-[13px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Next</button>
+                </div>
+              )}
+            </div>
+
             {/* Mobile filters */}
             <div className="block md:hidden px-4 py-3 border-b border-[#23232f] space-y-2.5">
               <div className="grid grid-cols-2 gap-2">
@@ -1527,7 +1555,7 @@ export default function AdminPage() {
 
             {/* Mobile cards */}
             <div className="block md:hidden divide-y divide-[#23232f]">
-              {filteredBookings.map((b, i) => {
+              {pagedBookings.map((b, i) => {
                 const room = rooms.find((r) => r._id === b.roomId)
                 const payColor = b.paymentStatus === 'paid' ? '#2fd18f' : b.paymentStatus === 'refunded' ? '#f25c78' : '#6c8cf5'
                 return (
@@ -1592,7 +1620,7 @@ export default function AdminPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <img src={roomThumbs[b.roomId] || '/images/room-pc.png'} alt="" className="w-8 h-8 rounded-[6px] object-cover shrink-0" />
+                      <img src={getRoomThumb(room)} alt="" className="w-8 h-8 rounded-[6px] object-cover shrink-0" />
                       <div>
                         <div className="text-[14px] font-medium text-[#f5f5f7]">{room?.name || 'Room'}</div>
                         {room && <div className="text-[12px] text-[#6b6b7b]">{typeLabels[room.type]}</div>}
@@ -1624,12 +1652,31 @@ export default function AdminPage() {
                       {b.paymentMethod === 'cash' && (
                         <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-[#f2a13c]/15 text-[#f2a13c]">Cash</span>
                       )}
+                      {b.paymentMethod === 'card' && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-[#6c8cf5]/15 text-[#6c8cf5]">Card</span>
+                      )}
                       <span className="text-[#6b6b7b] text-[12px]">{b.deviceCount} device{b.deviceCount > 1 ? 's' : ''}</span>
                     </div>
                   </div>
                 )
               })}
             </div>
+
+            {/* Mobile pagination */}
+            {bookingTotalPages > 1 && (
+              <div className="block md:hidden px-4 py-3 border-t border-[#23232f]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[12px] text-[#6b6b7b]">{bookingPage * BOOKINGS_PER_PAGE + 1}–{Math.min((bookingPage + 1) * BOOKINGS_PER_PAGE, filteredBookings.length)} of {filteredBookings.length}</span>
+                </div>
+                <div className="flex items-center justify-center gap-1.5">
+                  <button onClick={() => setBookingPage((p) => Math.max(0, p - 1))} disabled={bookingPage === 0} className="px-3 py-1.5 rounded-[6px] text-[12px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Prev</button>
+                  {Array.from({ length: bookingTotalPages }, (_, i) => (
+                    <button key={i} onClick={() => setBookingPage(i)} className={`w-7 h-7 rounded-[6px] text-[12px] font-medium transition-all cursor-pointer border ${bookingPage === i ? 'bg-[#7c6cf2] text-white border-[#7c6cf2]' : 'text-[#9a9aab] bg-[#0a0a0f] border-[#23232f] hover:text-[#f5f5f7]'}`}>{i + 1}</button>
+                  ))}
+                  <button onClick={() => setBookingPage((p) => Math.min(bookingTotalPages - 1, p + 1))} disabled={bookingPage >= bookingTotalPages - 1} className="px-3 py-1.5 rounded-[6px] text-[12px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Next</button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1832,107 +1879,94 @@ export default function AdminPage() {
             </div>
 
             {/* Desktop table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full">
+            <div className="hidden md:block">
+              <table className="w-full" style={{ tableLayout: 'fixed' }}>
+                <colgroup>
+                  <col style={{ width: '24%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '8%' }} />
+                </colgroup>
                 <thead>
                   <tr className="border-b border-[#23232f]">
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">User</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Phone</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Role</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Bookings</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Total Spent</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Status</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Joined</th>
-                    <th className="text-right px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Actions</th>
-                  </tr>
-                  <tr className="border-b border-[#23232f] bg-[#0e0e16]/60">
-                    <th className="px-3 py-2.5">
-                      <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6b6b7b]" />
-                        <input type="text" value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Name or email..." className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] pl-8 pr-2.5 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
-                      </div>
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">User</div>
+                      <input type="text" value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Search..." className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1 text-[11px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-all" />
                     </th>
-                    <th className="px-3 py-2.5"></th>
-                    <th className="px-3 py-2.5">
-                      <select value={roleFilter || ''} onChange={(e) => setRoleFilter(e.target.value || '')} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all appearance-none cursor-pointer">
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Role</div>
+                      <select value={roleFilter || ''} onChange={(e) => setRoleFilter(e.target.value || '')} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1 text-[11px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-all appearance-none cursor-pointer">
                         <option value="">All</option>
                         <option value="admin">Admin</option>
                         <option value="customer">Customer</option>
                       </select>
                     </th>
-                    <th className="px-3 py-2.5">
-                      <div className="flex gap-1 items-center">
-                        <input type="text" inputMode="numeric" value={userBookingsMin} onChange={(e) => setUserBookingsMin(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Min" className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
-                        <span className="text-[#6b6b7b] text-[11px] shrink-0">–</span>
-                        <input type="text" inputMode="numeric" value={userBookingsMax} onChange={(e) => setUserBookingsMax(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Max" className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
-                      </div>
+                    <th className="px-3 py-3 text-center">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Bookings</div>
                     </th>
-                    <th className="px-3 py-2.5">
-                      <div className="flex gap-1 items-center">
-                        <input type="text" inputMode="numeric" value={userSpentMin} onChange={(e) => setUserSpentMin(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Min" className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
-                        <span className="text-[#6b6b7b] text-[11px] shrink-0">–</span>
-                        <input type="text" inputMode="numeric" value={userSpentMax} onChange={(e) => setUserSpentMax(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Max" className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
-                      </div>
+                    <th className="px-3 py-3 text-center">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Spent</div>
                     </th>
-                    <th className="px-3 py-2.5">
-                      <select value={verifiedFilter || ''} onChange={(e) => setVerifiedFilter(e.target.value || '')} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all appearance-none cursor-pointer">
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Status</div>
+                      <select value={verifiedFilter || ''} onChange={(e) => setVerifiedFilter(e.target.value || '')} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1 text-[11px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-all appearance-none cursor-pointer">
                         <option value="">All</option>
                         <option value="verified">Verified</option>
                         <option value="unverified">Unverified</option>
                       </select>
                     </th>
-                    <th className="px-3 py-2.5"></th>
-                    <th className="px-3 py-2.5"></th>
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Joined</div>
+                    </th>
+                    <th className="px-3 py-3 text-center">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Actions</div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUsers.map((u) => {
+                  {pagedUsers.map((u) => {
                       const initial = u.name.charAt(0).toUpperCase()
                       return (
                         <tr key={u._id} className="border-b border-[#23232f] last:border-b-0 hover:bg-[#0a0a0f]/50 transition-colors">
-                          <td className="px-5 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-[8px] flex items-center justify-center text-[15px] font-bold shrink-0" style={{ background: '#23232f', color: '#9a9aab' }}>
+                          <td className="px-3 py-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-[6px] flex items-center justify-center text-[13px] font-bold shrink-0" style={{ background: '#23232f', color: '#9a9aab' }}>
                                 {initial}
                               </div>
-                              <div>
-                                <div className="text-[14px] font-medium text-[#f5f5f7]">{u.name}</div>
-                                <div className="text-[12px] text-[#6b6b7b]">{u.email}</div>
+                              <div className="min-w-0">
+                                <div className="text-[13px] font-medium text-[#f5f5f7] truncate">{u.name}</div>
+                                <div className="text-[11px] text-[#6b6b7b] truncate">{u.email}</div>
                               </div>
                             </div>
                           </td>
-                          <td className="px-5 py-4">
-                            <span className="text-[14px] text-[#f5f5f7] font-mono">{u.phone || '—'}</span>
-                          </td>
-                          <td className="px-5 py-4">
-                            <span className={`text-[12px] px-2.5 py-1 rounded-full font-semibold ${
-                              u.role === 'admin'
-                                ? 'bg-[#7c6cf2]/15 text-[#7c6cf2]'
-                                : 'bg-[#6b6b7b]/15 text-[#9a9aab]'
+                          <td className="px-3 py-3">
+                            <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
+                              u.role === 'admin' ? 'bg-[#7c6cf2]/15 text-[#7c6cf2]' : 'bg-[#6b6b7b]/15 text-[#9a9aab]'
                             }`}>
                               {u.role === 'admin' ? 'Admin' : 'User'}
                             </span>
                           </td>
-                          <td className="px-5 py-4">
-                            <span className="text-[14px] text-[#f5f5f7] font-medium">{u.bookings}</span>
+                          <td className="px-3 py-3">
+                            <span className="text-[13px] text-center block text-[#f5f5f7] font-medium">{u.bookings}</span>
                           </td>
-                          <td className="px-5 py-4">
-                            <span className="text-[14px] font-semibold text-[#f5f5f7]">${u.totalSpent}</span>
+                          <td className="px-3 py-3">
+                            <span className="text-[13px] font-bold text-[#f5f5f7] text-center block">${u.totalSpent}</span>
                           </td>
-                          <td className="px-5 py-4">
-                            <span className={`text-[12px] px-2.5 py-1 rounded-full font-semibold ${
-                              u.isVerified
-                                ? 'bg-[#2fd18f]/15 text-[#2fd18f]'
-                                : 'bg-[#f2a13c]/15 text-[#f2a13c]'
+                          <td className="px-3 py-3">
+                            <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
+                              u.isVerified ? 'bg-[#2fd18f]/15 text-[#2fd18f]' : 'bg-[#f2a13c]/15 text-[#f2a13c]'
                             }`}>
                               {u.isVerified ? 'Verified' : 'Unverified'}
                             </span>
                           </td>
-                          <td className="px-5 py-4">
-                            <div className="text-[14px] text-[#f5f5f7]">{new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                          <td className="px-3 py-3">
+                            <span className="text-[12px] text-[#6b6b7b]">{new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                           </td>
-                          <td className="px-5 py-4 text-right">
-                            <div className="flex items-center justify-end gap-1">
+                          <td className="px-3 py-3 text-center">
+                            <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={() => setDetailModal({
                                   open: true,
@@ -1940,18 +1974,10 @@ export default function AdminPage() {
                                   details: [
                                     { label: 'Email', value: u.email },
                                     { label: 'Phone', value: u.phone || '—' },
-                                    {
-                                      label: 'Role',
-                                      value: u.role === 'admin' ? 'Admin' : 'User',
-                                      color: u.role === 'admin' ? '#7c6cf2' : '#9a9aab',
-                                    },
+                                    { label: 'Role', value: u.role === 'admin' ? 'Admin' : 'User', color: u.role === 'admin' ? '#7c6cf2' : '#9a9aab' },
                                     { label: 'Bookings', value: `${u.bookings}` },
                                     { label: 'Total Spent', value: `$${u.totalSpent}` },
-                                    {
-                                      label: 'Status',
-                                      value: u.isVerified ? 'Verified' : 'Unverified',
-                                      color: u.isVerified ? '#2fd18f' : '#f2a13c',
-                                    },
+                                    { label: 'Status', value: u.isVerified ? 'Verified' : 'Unverified', color: u.isVerified ? '#2fd18f' : '#f2a13c' },
                                     { label: 'Joined', value: new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
                                   ],
                                 })}
@@ -1972,6 +1998,20 @@ export default function AdminPage() {
                     })}
                 </tbody>
               </table>
+            </div>
+
+            {/* Desktop pagination */}
+            <div className="hidden md:flex items-center justify-between px-5 py-3 border-t border-[#23232f]">
+              <span className="text-[13px] text-[#6b6b7b]">Showing {filteredUsers.length > 0 ? userPage * USERS_PER_PAGE + 1 : 0}–{Math.min((userPage + 1) * USERS_PER_PAGE, filteredUsers.length)} of {filteredUsers.length} users</span>
+              {userTotalPages > 1 && (
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setUserPage((p) => Math.max(0, p - 1))} disabled={userPage === 0} className="px-3 py-1.5 rounded-[6px] text-[13px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Prev</button>
+                  {Array.from({ length: userTotalPages }, (_, i) => (
+                    <button key={i} onClick={() => setUserPage(i)} className={`w-8 h-8 rounded-[6px] text-[13px] font-medium transition-all cursor-pointer border ${userPage === i ? 'bg-[#7c6cf2] text-white border-[#7c6cf2]' : 'text-[#9a9aab] bg-[#0a0a0f] border-[#23232f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40'}`}>{i + 1}</button>
+                  ))}
+                  <button onClick={() => setUserPage((p) => Math.min(userTotalPages - 1, p + 1))} disabled={userPage >= userTotalPages - 1} className="px-3 py-1.5 rounded-[6px] text-[13px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Next</button>
+                </div>
+              )}
             </div>
 
             {/* Mobile filters */}
@@ -1996,7 +2036,7 @@ export default function AdminPage() {
 
             {/* Mobile cards */}
             <div className="block md:hidden divide-y divide-[#23232f]">
-              {filteredUsers.map((u) => {
+              {pagedUsers.map((u) => {
                 const initial = u.name.charAt(0).toUpperCase()
                 return (
                   <div key={u._id} className="px-4 py-4 space-y-3">
@@ -2056,8 +2096,23 @@ export default function AdminPage() {
               })}
             </div>
 
-            <div className="px-5 py-4 border-t border-[#23232f] flex items-center gap-5">
-              <span className="text-[13px] text-[#9a9aab]">Showing {filteredUsers.length} of {filteredUsers.length} users</span>
+            {/* Mobile pagination */}
+            {userTotalPages > 1 && (
+              <div className="block md:hidden px-4 py-3 border-t border-[#23232f]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[12px] text-[#6b6b7b]">{userPage * USERS_PER_PAGE + 1}–{Math.min((userPage + 1) * USERS_PER_PAGE, filteredUsers.length)} of {filteredUsers.length}</span>
+                </div>
+                <div className="flex items-center justify-center gap-1.5">
+                  <button onClick={() => setUserPage((p) => Math.max(0, p - 1))} disabled={userPage === 0} className="px-3 py-1.5 rounded-[6px] text-[12px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Prev</button>
+                  {Array.from({ length: userTotalPages }, (_, i) => (
+                    <button key={i} onClick={() => setUserPage(i)} className={`w-7 h-7 rounded-[6px] text-[12px] font-medium transition-all cursor-pointer border ${userPage === i ? 'bg-[#7c6cf2] text-white border-[#7c6cf2]' : 'text-[#9a9aab] bg-[#0a0a0f] border-[#23232f] hover:text-[#f5f5f7]'}`}>{i + 1}</button>
+                  ))}
+                  <button onClick={() => setUserPage((p) => Math.min(userTotalPages - 1, p + 1))} disabled={userPage >= userTotalPages - 1} className="px-3 py-1.5 rounded-[6px] text-[12px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Next</button>
+                </div>
+              </div>
+            )}
+
+            <div className="px-5 py-3 border-t border-[#23232f] flex items-center gap-5">
               <span className="text-[13px] text-[#6b6b7b]">{filteredUsers.filter((u) => u.role === 'admin').length} admin</span>
               <span className="text-[13px] text-[#6b6b7b]">{filteredUsers.filter((u) => u.isVerified).length} verified</span>
             </div>
