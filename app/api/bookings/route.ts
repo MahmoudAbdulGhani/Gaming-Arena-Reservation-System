@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { ObjectId } from 'mongodb'
 import { getDb } from '@/lib/mongodb'
 import { verifyToken } from '@/lib/auth'
+import { errorResponse, toJSON } from '@/lib/admin-helper'
+import { ObjectId } from 'mongodb'
 
 export async function POST(request: Request) {
   try {
@@ -9,71 +10,86 @@ export async function POST(request: Request) {
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    let payload: { userId: string; email: string; role: string }
-    try {
-      payload = verifyToken(authHeader.slice(7))
-    } catch {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
-    }
+    const payload = verifyToken(authHeader.slice(7))
 
     const body = await request.json()
-    const {
-      userId: targetUserId,
-      roomId,
-      deviceIds,
-      bookingDate,
-      startTime,
-      endTime,
-      durationHours,
-      totalPrice,
-      paymentMethod,
-      paymentId,
-    } = body
+    const { roomId, deviceIds, bookingDate, startTime, durationHours, totalPrice, paymentMethod } = body
 
-    if (!roomId || !bookingDate || !startTime || !endTime || !durationHours) {
+    if (!roomId || !bookingDate || !startTime || !durationHours || !totalPrice) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const isAdmin = payload.role === 'admin'
-    const bookingUserId = isAdmin && targetUserId ? targetUserId : payload.userId
-
     const db = await getDb()
+    const endHour = parseInt(startTime.split(':')[0]) + durationHours
+    const endTime = `${String(endHour).padStart(2, '0')}:00`
 
-    const now = new Date()
-    const bookingDoc = {
-      userId: new ObjectId(bookingUserId),
+    const booking = {
+      userId: new ObjectId(payload.userId),
       roomId: new ObjectId(roomId),
       deviceIds: (deviceIds ?? []).map((id: string) => new ObjectId(id)),
-      deviceCount: (deviceIds ?? []).length,
-      bookingDate,
+      deviceCount: deviceIds?.length ?? 0,
+      bookingDate: new Date(bookingDate),
       startTime,
       endTime,
       durationHours,
       totalPrice,
       status: paymentMethod === 'cash' ? 'pending' : 'confirmed',
       paymentStatus: paymentMethod === 'cash' ? 'unpaid' : 'paid',
-      paymentId: paymentId ?? null,
-      confirmationMessage: paymentMethod === 'cash'
-        ? 'Booking pending — pay at the front desk to confirm.'
-        : 'Booking confirmed. Payment received.',
-      createdAt: now,
-      updatedAt: now,
+      paymentMethod: paymentMethod ?? 'card',
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }
 
-    const result = await db.collection('bookings').insertOne(bookingDoc)
+    const result = await db.collection('bookings').insertOne(booking)
 
-    return NextResponse.json({
-      _id: result.insertedId.toString(),
-      ...bookingDoc,
-      userId: bookingUserId,
-      roomId,
-      deviceIds: deviceIds ?? [],
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString(),
-    }, { status: 201 })
+    if (paymentMethod === 'card' || paymentMethod !== 'cash') {
+      await db.collection('payments').insertOne({
+        bookingId: result.insertedId,
+        userId: new ObjectId(payload.userId),
+        amount: totalPrice,
+        currency: 'usd',
+        paymentMethod: 'card',
+        status: 'completed',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+    }
+
+    if (deviceIds && deviceIds.length > 0) {
+      await db.collection('devices').updateMany(
+        { _id: { $in: deviceIds.map((id: string) => new ObjectId(id)) } },
+        { $set: { status: 'booked' } }
+      )
+    }
+
+    if (paymentMethod !== 'cash') {
+      await db.collection('users').updateOne(
+        { _id: new ObjectId(payload.userId) },
+        { $inc: { loyaltyPoints: 10 } }
+      )
+    }
+
+    const saved = await db.collection('bookings').findOne({ _id: result.insertedId })
+    const room = await db.collection('rooms').findOne({ _id: new ObjectId(roomId) })
+
+    const data = {
+      ...toJSON(saved as Record<string, unknown>),
+      room: room ? {
+        _id: room._id.toString(),
+        name: room.name,
+        type: room.type,
+        description: room.description ?? '',
+        images: room.images ?? [],
+        pricePerHour: room.pricePerHour,
+        totalDevices: room.totalDevices,
+        status: room.status,
+        createdAt: room.createdAt?.toISOString() ?? '',
+        updatedAt: room.updatedAt?.toISOString() ?? '',
+      } : undefined,
+    }
+
+    return NextResponse.json(data, { status: 201 })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Internal server error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return errorResponse(error)
   }
 }

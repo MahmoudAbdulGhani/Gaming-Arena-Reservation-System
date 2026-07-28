@@ -2,9 +2,8 @@ import { NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
 import { getDbWithAdminCheck, errorResponse, toJSON } from '@/lib/admin-helper'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const request = new Request('http://dummy')
     const { db } = await getDbWithAdminCheck(request)
     const rooms = await db.collection('rooms').find().sort({ name: 1 }).toArray()
     return NextResponse.json(rooms.map(toJSON))
@@ -37,7 +36,7 @@ export async function POST(request: Request) {
 
     const devices = []
     if (totalDevices > 0) {
-      const prefix = type === 'pc' ? 'PC' : type === 'console' ? 'Console' : type === 'vr' ? 'VR' : 'Room'
+      const prefix = type === 'pc' ? 'PC' : type === 'console' ? 'Console' : type === 'vr' ? 'VR' : 'PV'
       for (let i = 1; i <= totalDevices; i++) {
         const label = `${prefix}-${String(i).padStart(2, '0')}`
         devices.push({
