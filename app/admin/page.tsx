@@ -844,6 +844,10 @@ export default function AdminPage() {
   const [showAddDevice, setShowAddDevice] = useState(false)
   const [editingDevice, setEditingDevice] = useState<Device | null>(null)
   const [showAddReservation, setShowAddReservation] = useState(false)
+  const BOOKINGS_PER_PAGE = 10
+  const USERS_PER_PAGE = 10
+  const [bookingPage, setBookingPage] = useState(0)
+  const [userPage, setUserPage] = useState(0)
 
   const [rooms, setRooms] = useState<Room[]>([])
   const [devices, setDevices] = useState<Device[]>([])
@@ -858,6 +862,9 @@ export default function AdminPage() {
       return () => clearTimeout(t)
     }
   }, [feedback])
+
+  useEffect(() => { setBookingPage(0) }, [search, customerSearch, roomFilter, dateFrom, statusFilter, paymentFilter])
+  useEffect(() => { setUserPage(0) }, [userSearch, roleFilter, verifiedFilter, userBookingsMin, userBookingsMax, userSpentMin, userSpentMax])
 
   async function apiFetch(url: string, options?: RequestInit) {
     const token = localStorage.getItem('gz_token')
@@ -1109,6 +1116,8 @@ export default function AdminPage() {
     if (paymentFilter && b.paymentStatus !== paymentFilter) return false
     return true
   })
+  const bookingTotalPages = Math.ceil(filteredBookings.length / BOOKINGS_PER_PAGE)
+  const pagedBookings = filteredBookings.slice(bookingPage * BOOKINGS_PER_PAGE, (bookingPage + 1) * BOOKINGS_PER_PAGE)
 
   const filteredUsers = users.filter((u) => {
     if (deletedUserIds.includes(u._id)) return false
@@ -1125,6 +1134,8 @@ export default function AdminPage() {
     if (userSpentMax && (u.totalSpent ?? 0) > parseFloat(userSpentMax)) return false
     return true
   })
+  const userTotalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE)
+  const pagedUsers = filteredUsers.slice(userPage * USERS_PER_PAGE, (userPage + 1) * USERS_PER_PAGE)
 
   const filteredRooms = rooms.filter((r) => {
     if (!roomSearch) return true
@@ -1350,7 +1361,7 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredBookings.map((b, i) => {
+                  {pagedBookings.map((b, i) => {
                     const room = rooms.find((r) => r._id === b.roomId)
                     return (
                       <tr key={b._id} className="border-b border-[#23232f] last:border-b-0 hover:bg-[#0a0a0f]/50 transition-colors">
@@ -1489,6 +1500,20 @@ export default function AdminPage() {
               </table>
             </div>
 
+            {/* Desktop pagination */}
+            {bookingTotalPages > 1 && (
+              <div className="hidden md:flex items-center justify-between px-5 py-3 border-t border-[#23232f]">
+                <span className="text-[13px] text-[#6b6b7b]">Showing {bookingPage * BOOKINGS_PER_PAGE + 1}–{Math.min((bookingPage + 1) * BOOKINGS_PER_PAGE, filteredBookings.length)} of {filteredBookings.length}</span>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setBookingPage((p) => Math.max(0, p - 1))} disabled={bookingPage === 0} className="px-3 py-1.5 rounded-[6px] text-[13px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Prev</button>
+                  {Array.from({ length: bookingTotalPages }, (_, i) => (
+                    <button key={i} onClick={() => setBookingPage(i)} className={`w-8 h-8 rounded-[6px] text-[13px] font-medium transition-all cursor-pointer border ${bookingPage === i ? 'bg-[#7c6cf2] text-white border-[#7c6cf2]' : 'text-[#9a9aab] bg-[#0a0a0f] border-[#23232f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40'}`}>{i + 1}</button>
+                  ))}
+                  <button onClick={() => setBookingPage((p) => Math.min(bookingTotalPages - 1, p + 1))} disabled={bookingPage >= bookingTotalPages - 1} className="px-3 py-1.5 rounded-[6px] text-[13px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Next</button>
+                </div>
+              </div>
+            )}
+
             {/* Mobile filters */}
             <div className="block md:hidden px-4 py-3 border-b border-[#23232f] space-y-2.5">
               <div className="grid grid-cols-2 gap-2">
@@ -1527,7 +1552,7 @@ export default function AdminPage() {
 
             {/* Mobile cards */}
             <div className="block md:hidden divide-y divide-[#23232f]">
-              {filteredBookings.map((b, i) => {
+              {pagedBookings.map((b, i) => {
                 const room = rooms.find((r) => r._id === b.roomId)
                 const payColor = b.paymentStatus === 'paid' ? '#2fd18f' : b.paymentStatus === 'refunded' ? '#f25c78' : '#6c8cf5'
                 return (
@@ -1630,6 +1655,22 @@ export default function AdminPage() {
                 )
               })}
             </div>
+
+            {/* Mobile pagination */}
+            {bookingTotalPages > 1 && (
+              <div className="block md:hidden px-4 py-3 border-t border-[#23232f]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[12px] text-[#6b6b7b]">{bookingPage * BOOKINGS_PER_PAGE + 1}–{Math.min((bookingPage + 1) * BOOKINGS_PER_PAGE, filteredBookings.length)} of {filteredBookings.length}</span>
+                </div>
+                <div className="flex items-center justify-center gap-1.5">
+                  <button onClick={() => setBookingPage((p) => Math.max(0, p - 1))} disabled={bookingPage === 0} className="px-3 py-1.5 rounded-[6px] text-[12px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Prev</button>
+                  {Array.from({ length: bookingTotalPages }, (_, i) => (
+                    <button key={i} onClick={() => setBookingPage(i)} className={`w-7 h-7 rounded-[6px] text-[12px] font-medium transition-all cursor-pointer border ${bookingPage === i ? 'bg-[#7c6cf2] text-white border-[#7c6cf2]' : 'text-[#9a9aab] bg-[#0a0a0f] border-[#23232f] hover:text-[#f5f5f7]'}`}>{i + 1}</button>
+                  ))}
+                  <button onClick={() => setBookingPage((p) => Math.min(bookingTotalPages - 1, p + 1))} disabled={bookingPage >= bookingTotalPages - 1} className="px-3 py-1.5 rounded-[6px] text-[12px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Next</button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1886,7 +1927,7 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUsers.map((u) => {
+                  {pagedUsers.map((u) => {
                       const initial = u.name.charAt(0).toUpperCase()
                       return (
                         <tr key={u._id} className="border-b border-[#23232f] last:border-b-0 hover:bg-[#0a0a0f]/50 transition-colors">
@@ -1974,6 +2015,20 @@ export default function AdminPage() {
               </table>
             </div>
 
+            {/* Desktop pagination */}
+            {userTotalPages > 1 && (
+              <div className="hidden md:flex items-center justify-between px-5 py-3 border-t border-[#23232f]">
+                <span className="text-[13px] text-[#6b6b7b]">Showing {userPage * USERS_PER_PAGE + 1}–{Math.min((userPage + 1) * USERS_PER_PAGE, filteredUsers.length)} of {filteredUsers.length}</span>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setUserPage((p) => Math.max(0, p - 1))} disabled={userPage === 0} className="px-3 py-1.5 rounded-[6px] text-[13px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Prev</button>
+                  {Array.from({ length: userTotalPages }, (_, i) => (
+                    <button key={i} onClick={() => setUserPage(i)} className={`w-8 h-8 rounded-[6px] text-[13px] font-medium transition-all cursor-pointer border ${userPage === i ? 'bg-[#7c6cf2] text-white border-[#7c6cf2]' : 'text-[#9a9aab] bg-[#0a0a0f] border-[#23232f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40'}`}>{i + 1}</button>
+                  ))}
+                  <button onClick={() => setUserPage((p) => Math.min(userTotalPages - 1, p + 1))} disabled={userPage >= userTotalPages - 1} className="px-3 py-1.5 rounded-[6px] text-[13px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Next</button>
+                </div>
+              </div>
+            )}
+
             {/* Mobile filters */}
             <div className="block md:hidden px-4 py-3 border-b border-[#23232f] space-y-2.5">
               <div className="relative">
@@ -1996,7 +2051,7 @@ export default function AdminPage() {
 
             {/* Mobile cards */}
             <div className="block md:hidden divide-y divide-[#23232f]">
-              {filteredUsers.map((u) => {
+              {pagedUsers.map((u) => {
                 const initial = u.name.charAt(0).toUpperCase()
                 return (
                   <div key={u._id} className="px-4 py-4 space-y-3">
@@ -2056,8 +2111,24 @@ export default function AdminPage() {
               })}
             </div>
 
+            {/* Mobile pagination */}
+            {userTotalPages > 1 && (
+              <div className="block md:hidden px-4 py-3 border-t border-[#23232f]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[12px] text-[#6b6b7b]">{userPage * USERS_PER_PAGE + 1}–{Math.min((userPage + 1) * USERS_PER_PAGE, filteredUsers.length)} of {filteredUsers.length}</span>
+                </div>
+                <div className="flex items-center justify-center gap-1.5">
+                  <button onClick={() => setUserPage((p) => Math.max(0, p - 1))} disabled={userPage === 0} className="px-3 py-1.5 rounded-[6px] text-[12px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Prev</button>
+                  {Array.from({ length: userTotalPages }, (_, i) => (
+                    <button key={i} onClick={() => setUserPage(i)} className={`w-7 h-7 rounded-[6px] text-[12px] font-medium transition-all cursor-pointer border ${userPage === i ? 'bg-[#7c6cf2] text-white border-[#7c6cf2]' : 'text-[#9a9aab] bg-[#0a0a0f] border-[#23232f] hover:text-[#f5f5f7]'}`}>{i + 1}</button>
+                  ))}
+                  <button onClick={() => setUserPage((p) => Math.min(userTotalPages - 1, p + 1))} disabled={userPage >= userTotalPages - 1} className="px-3 py-1.5 rounded-[6px] text-[12px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Next</button>
+                </div>
+              </div>
+            )}
+
             <div className="px-5 py-4 border-t border-[#23232f] flex items-center gap-5">
-              <span className="text-[13px] text-[#9a9aab]">Showing {filteredUsers.length} of {filteredUsers.length} users</span>
+              <span className="text-[13px] text-[#9a9aab]">Showing {filteredUsers.length} of {users.length} users</span>
               <span className="text-[13px] text-[#6b6b7b]">{filteredUsers.filter((u) => u.role === 'admin').length} admin</span>
               <span className="text-[13px] text-[#6b6b7b]">{filteredUsers.filter((u) => u.isVerified).length} verified</span>
             </div>
