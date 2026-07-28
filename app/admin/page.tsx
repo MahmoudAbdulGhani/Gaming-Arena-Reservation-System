@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
-import { Search, Plus, ExternalLink, Pencil, Eye, Trash2, X, Download, Lock, AlertCircle, CreditCard, Banknote, CheckCircle2 } from 'lucide-react'
+import { Search, Plus, Pencil, Eye, Trash2, X, Download, Lock, AlertCircle, CreditCard, Banknote, CheckCircle2 } from 'lucide-react'
 import Navbar from '@/components/navbar'
 import type { Device, RoomType, User, Room, Booking } from '@/lib/types'
 import { CardElement, useStripe, useElements, Elements } from '@stripe/react-stripe-js'
@@ -33,13 +33,17 @@ const typeLabels: Record<RoomType, string> = {
   private: 'Private Room',
 }
 
-const roomThumbs: Record<string, string> = {
-  r1: '/images/room-pc.png',
-  r2: '/images/room-pc.png',
-  r3: '/images/room-console.png',
-  r4: '/images/room-vr.png',
-  r5: '/images/room-private.png',
-  r6: '/images/room-private.png',
+const roomTypeFallback: Record<string, string> = {
+  pc: '/images/room-pc.png',
+  console: '/images/room-console.png',
+  vr: '/images/room-vr.png',
+  private: '/images/room-private.png',
+}
+
+function getRoomThumb(room?: Room): string {
+  if (room?.images?.length) return room.images[0]
+  if (room?.type) return roomTypeFallback[room.type] || '/images/room-pc.png'
+  return '/images/room-pc.png'
 }
 
 function getDisplayId(id: string) {
@@ -1082,10 +1086,12 @@ export default function AdminPage() {
 
   const revenueByType = (['pc', 'console', 'vr', 'private'] as RoomType[]).map((type) => {
     const roomIds = rooms.filter((r) => r.type === type).map((r) => r._id)
-    const rev = bookings
-      .filter((b) => roomIds.includes(b.roomId) && (b.status === 'completed' || b.paymentStatus === 'paid'))
-      .reduce((s, b) => s + b.totalPrice, 0)
-    return { label: typeLabels[type], value: rev, color: typeColors[type] }
+    const paid = bookings.filter((b) => roomIds.includes(b.roomId) && (b.status === 'completed' || b.paymentStatus === 'paid'))
+    const rev = paid.reduce((s, b) => s + b.totalPrice, 0)
+    const count = paid.length
+    const avg = count > 0 ? Math.round(rev / count) : 0
+    const pct = totalRevenue > 0 ? Math.round((rev / totalRevenue) * 100) : 0
+    return { label: typeLabels[type], value: rev, color: typeColors[type], count, avg, pct }
   })
   const maxRev = Math.max(...revenueByType.map((r) => r.value), 1)
 
@@ -1137,26 +1143,6 @@ export default function AdminPage() {
     <div className="min-h-screen bg-[#0a0a0f]">
       <Navbar />
       <div className="px-4 sm:px-6 lg:px-10 py-8 pt-24" style={{ maxWidth: 1400, margin: '0 auto' }}>
-        {/* Breadcrumb */}
-        <div className="text-[13px] text-[#6b6b7b] mb-1.5">
-          <Link href="/" className="text-[#7c6cf2] no-underline">GameZone</Link> › Admin Panel
-        </div>
-
-        {/* Top row */}
-        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-7">
-          <h1 className="text-[28px] sm:text-[32px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>Admin Panel</h1>
-          <div className="flex gap-3 w-full sm:w-auto">
-            <Link href="/" className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-[18px] py-[11px] rounded-[10px] text-[14px] font-semibold border border-[#23232f] bg-[#12121a] text-[#f5f5f7] hover:bg-[#1a1a26] transition-all no-underline">
-              <ExternalLink className="w-4 h-4" />
-              View Site
-            </Link>
-            <button onClick={() => setShowAddReservation(true)} className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-[18px] py-[11px] rounded-[10px] text-[14px] font-semibold text-white no-underline cursor-pointer btn-primary-gradient glow-violet transition-all duration-200 border-none">
-              <Plus className="w-4 h-4" />
-              Add Reservation
-            </button>
-          </div>
-        </div>
-
         {/* Tabs */}
         <div className="flex gap-4 sm:gap-7 border-b border-[#23232f] mb-7 overflow-x-auto scrollbar-none">
           {tabs.map((tab) => (
@@ -1208,7 +1194,7 @@ export default function AdminPage() {
                   const statusColor = room.status === 'active' ? 'bg-[#2fd18f]/15 text-[#2fd18f]' : room.status === 'maintenance' ? 'bg-[#f2a13c]/15 text-[#f2a13c]' : 'bg-[#f25c78]/15 text-[#f25c78]'
                   return (
                     <div key={room._id} className="flex items-center py-3 border-b border-[#23232f] last:border-b-0 gap-2">
-                      <img src={roomThumbs[room._id]} alt="" className="w-11 h-11 rounded-[10px] object-cover shrink-0" />
+                      <img src={getRoomThumb(room)} alt="" className="w-11 h-11 rounded-[10px] object-cover shrink-0" />
                       <div className="min-w-0">
                         <div className="text-[14.5px] font-semibold text-[#f5f5f7] truncate">{room.name}</div>
                         <div className="text-[12.5px] text-[#6b6b7b] mt-0.5">{typeLabels[room.type]}</div>
@@ -1233,7 +1219,7 @@ export default function AdminPage() {
                 </div>
                 {bookings.slice(0, 5).map((b) => (
                   <div key={b._id} className="flex items-center py-3 border-b border-[#23232f] last:border-b-0">
-                    <img src={roomThumbs[b.roomId] || '/images/room-pc.png'} alt="" className="w-11 h-11 rounded-[10px] object-cover mr-3.5 shrink-0" />
+                    <img src={getRoomThumb(b.room)} alt="" className="w-11 h-11 rounded-[10px] object-cover mr-3.5 shrink-0" />
                     <div>
                       <div className="text-[14.5px] font-semibold text-[#f5f5f7]">{b.room?.name || 'Room'}</div>
                       <div className="text-[12.5px] text-[#6b6b7b] mt-0.5">{formatDate(b.bookingDate)} · {b.deviceCount} device{b.deviceCount > 1 ? 's' : ''}</div>
@@ -1250,16 +1236,30 @@ export default function AdminPage() {
             </div>
 
             <div className="bg-[#12121a] border border-[#23232f] rounded-[14px] p-[22px]">
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex justify-between items-center mb-5">
                 <div className="text-[16px] font-bold text-[#f5f5f7]" style={{ fontFamily: 'var(--font-display)' }}>Revenue by Room Type</div>
+                <div className="text-[13px] text-[#6b6b7b]">Total: <span className="text-[#f5f5f7] font-semibold">${totalRevenue.toLocaleString()}</span></div>
               </div>
-              {revenueByType.map((r) => (
-                <div key={r.label} className="flex items-center gap-4 mb-5 last:mb-0">
-                  <div className="text-[14px] text-[#9a9aab] text-right min-w-[110px]">{r.label}</div>
-                  <div className="h-[26px] rounded-[6px] flex items-center px-3" style={{ width: `${(r.value / maxRev) * 100}%`, background: r.color, minWidth: r.value > 0 ? 40 : 0 }} />
-                  <div className="text-[14px] font-semibold text-[#f5f5f7] min-w-[70px]">${r.value}</div>
-                </div>
-              ))}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {revenueByType.map((r) => (
+                  <div key={r.label} className="bg-[#0a0a0f] border border-[#23232f] rounded-[10px] p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: r.color }} />
+                        <span className="text-[14px] font-semibold text-[#f5f5f7]">{r.label}</span>
+                      </div>
+                      <span className="text-[13px] font-bold" style={{ color: r.color }}>${r.value.toLocaleString()}</span>
+                    </div>
+                    <div className="h-[6px] rounded-full bg-[#23232f] overflow-hidden mb-3">
+                      <div className="h-full rounded-full" style={{ width: `${r.pct}%`, background: r.color }} />
+                    </div>
+                    <div className="flex items-center justify-between text-[12px] text-[#6b6b7b]">
+                      <span>{r.count} booking{r.count !== 1 ? 's' : ''}</span>
+                      <span>{r.pct}% of total</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </>
         )}
@@ -1359,7 +1359,7 @@ export default function AdminPage() {
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
-                            <img src={roomThumbs[b.roomId] || '/images/room-pc.png'} alt="" className="w-9 h-9 rounded-[8px] object-cover shrink-0" />
+                            <img src={getRoomThumb(room)} alt="" className="w-9 h-9 rounded-[8px] object-cover shrink-0" />
                             <div>
                               <div className="text-[14px] font-medium text-[#f5f5f7]">{room?.name || 'Room'}</div>
                               {room && <div className="text-[12px] text-[#6b6b7b]">{typeLabels[room.type]}</div>}
@@ -1592,7 +1592,7 @@ export default function AdminPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <img src={roomThumbs[b.roomId] || '/images/room-pc.png'} alt="" className="w-8 h-8 rounded-[6px] object-cover shrink-0" />
+                      <img src={getRoomThumb(room)} alt="" className="w-8 h-8 rounded-[6px] object-cover shrink-0" />
                       <div>
                         <div className="text-[14px] font-medium text-[#f5f5f7]">{room?.name || 'Room'}</div>
                         {room && <div className="text-[12px] text-[#6b6b7b]">{typeLabels[room.type]}</div>}
