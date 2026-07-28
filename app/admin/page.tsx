@@ -1147,9 +1147,9 @@ export default function AdminPage() {
 
   const tabs = [
     { id: 'overview', label: 'Overview', badge: null },
-    { id: 'bookings', label: 'Bookings', badge: bookings.length },
+    { id: 'bookings', label: 'Bookings', badge: null },
     { id: 'rooms', label: 'Rooms', badge: null },
-    { id: 'users', label: 'Users', badge: 5 },
+    { id: 'users', label: 'Users', badge: null },
   ]
 
   return (
@@ -1879,57 +1879,51 @@ export default function AdminPage() {
             </div>
 
             {/* Desktop table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full">
+            <div className="hidden md:block">
+              <table className="w-full" style={{ tableLayout: 'fixed' }}>
+                <colgroup>
+                  <col style={{ width: '24%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '8%' }} />
+                </colgroup>
                 <thead>
                   <tr className="border-b border-[#23232f]">
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">User</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Phone</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Role</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Bookings</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Total Spent</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Status</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Joined</th>
-                    <th className="text-right px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Actions</th>
-                  </tr>
-                  <tr className="border-b border-[#23232f] bg-[#0e0e16]/60">
-                    <th className="px-3 py-2.5">
-                      <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6b6b7b]" />
-                        <input type="text" value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Name or email..." className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] pl-8 pr-2.5 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
-                      </div>
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">User</div>
+                      <input type="text" value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Search..." className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1 text-[11px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-all" />
                     </th>
-                    <th className="px-3 py-2.5"></th>
-                    <th className="px-3 py-2.5">
-                      <select value={roleFilter || ''} onChange={(e) => setRoleFilter(e.target.value || '')} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all appearance-none cursor-pointer">
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Role</div>
+                      <select value={roleFilter || ''} onChange={(e) => setRoleFilter(e.target.value || '')} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1 text-[11px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-all appearance-none cursor-pointer">
                         <option value="">All</option>
                         <option value="admin">Admin</option>
                         <option value="customer">Customer</option>
                       </select>
                     </th>
-                    <th className="px-3 py-2.5">
-                      <div className="flex gap-1 items-center">
-                        <input type="text" inputMode="numeric" value={userBookingsMin} onChange={(e) => setUserBookingsMin(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Min" className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
-                        <span className="text-[#6b6b7b] text-[11px] shrink-0">–</span>
-                        <input type="text" inputMode="numeric" value={userBookingsMax} onChange={(e) => setUserBookingsMax(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Max" className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
-                      </div>
+                    <th className="px-3 py-3 text-center">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Bookings</div>
                     </th>
-                    <th className="px-3 py-2.5">
-                      <div className="flex gap-1 items-center">
-                        <input type="text" inputMode="numeric" value={userSpentMin} onChange={(e) => setUserSpentMin(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Min" className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
-                        <span className="text-[#6b6b7b] text-[11px] shrink-0">–</span>
-                        <input type="text" inputMode="numeric" value={userSpentMax} onChange={(e) => setUserSpentMax(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Max" className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
-                      </div>
+                    <th className="px-3 py-3 text-center">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Spent</div>
                     </th>
-                    <th className="px-3 py-2.5">
-                      <select value={verifiedFilter || ''} onChange={(e) => setVerifiedFilter(e.target.value || '')} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all appearance-none cursor-pointer">
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Status</div>
+                      <select value={verifiedFilter || ''} onChange={(e) => setVerifiedFilter(e.target.value || '')} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1 text-[11px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-all appearance-none cursor-pointer">
                         <option value="">All</option>
                         <option value="verified">Verified</option>
                         <option value="unverified">Unverified</option>
                       </select>
                     </th>
-                    <th className="px-3 py-2.5"></th>
-                    <th className="px-3 py-2.5"></th>
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Joined</div>
+                    </th>
+                    <th className="px-3 py-3 text-center">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Actions</div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1937,49 +1931,42 @@ export default function AdminPage() {
                       const initial = u.name.charAt(0).toUpperCase()
                       return (
                         <tr key={u._id} className="border-b border-[#23232f] last:border-b-0 hover:bg-[#0a0a0f]/50 transition-colors">
-                          <td className="px-5 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-[8px] flex items-center justify-center text-[15px] font-bold shrink-0" style={{ background: '#23232f', color: '#9a9aab' }}>
+                          <td className="px-3 py-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-[6px] flex items-center justify-center text-[13px] font-bold shrink-0" style={{ background: '#23232f', color: '#9a9aab' }}>
                                 {initial}
                               </div>
-                              <div>
-                                <div className="text-[14px] font-medium text-[#f5f5f7]">{u.name}</div>
-                                <div className="text-[12px] text-[#6b6b7b]">{u.email}</div>
+                              <div className="min-w-0">
+                                <div className="text-[13px] font-medium text-[#f5f5f7] truncate">{u.name}</div>
+                                <div className="text-[11px] text-[#6b6b7b] truncate">{u.email}</div>
                               </div>
                             </div>
                           </td>
-                          <td className="px-5 py-4">
-                            <span className="text-[14px] text-[#f5f5f7] font-mono">{u.phone || '—'}</span>
-                          </td>
-                          <td className="px-5 py-4">
-                            <span className={`text-[12px] px-2.5 py-1 rounded-full font-semibold ${
-                              u.role === 'admin'
-                                ? 'bg-[#7c6cf2]/15 text-[#7c6cf2]'
-                                : 'bg-[#6b6b7b]/15 text-[#9a9aab]'
+                          <td className="px-3 py-3">
+                            <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
+                              u.role === 'admin' ? 'bg-[#7c6cf2]/15 text-[#7c6cf2]' : 'bg-[#6b6b7b]/15 text-[#9a9aab]'
                             }`}>
                               {u.role === 'admin' ? 'Admin' : 'User'}
                             </span>
                           </td>
-                          <td className="px-5 py-4">
-                            <span className="text-[14px] text-[#f5f5f7] font-medium">{u.bookings}</span>
+                          <td className="px-3 py-3">
+                            <span className="text-[13px] text-center block text-[#f5f5f7] font-medium">{u.bookings}</span>
                           </td>
-                          <td className="px-5 py-4">
-                            <span className="text-[14px] font-semibold text-[#f5f5f7]">${u.totalSpent}</span>
+                          <td className="px-3 py-3">
+                            <span className="text-[13px] font-bold text-[#f5f5f7] text-center block">${u.totalSpent}</span>
                           </td>
-                          <td className="px-5 py-4">
-                            <span className={`text-[12px] px-2.5 py-1 rounded-full font-semibold ${
-                              u.isVerified
-                                ? 'bg-[#2fd18f]/15 text-[#2fd18f]'
-                                : 'bg-[#f2a13c]/15 text-[#f2a13c]'
+                          <td className="px-3 py-3">
+                            <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
+                              u.isVerified ? 'bg-[#2fd18f]/15 text-[#2fd18f]' : 'bg-[#f2a13c]/15 text-[#f2a13c]'
                             }`}>
                               {u.isVerified ? 'Verified' : 'Unverified'}
                             </span>
                           </td>
-                          <td className="px-5 py-4">
-                            <div className="text-[14px] text-[#f5f5f7]">{new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                          <td className="px-3 py-3">
+                            <span className="text-[12px] text-[#6b6b7b]">{new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                           </td>
-                          <td className="px-5 py-4 text-right">
-                            <div className="flex items-center justify-end gap-1">
+                          <td className="px-3 py-3 text-center">
+                            <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={() => setDetailModal({
                                   open: true,
@@ -1987,18 +1974,10 @@ export default function AdminPage() {
                                   details: [
                                     { label: 'Email', value: u.email },
                                     { label: 'Phone', value: u.phone || '—' },
-                                    {
-                                      label: 'Role',
-                                      value: u.role === 'admin' ? 'Admin' : 'User',
-                                      color: u.role === 'admin' ? '#7c6cf2' : '#9a9aab',
-                                    },
+                                    { label: 'Role', value: u.role === 'admin' ? 'Admin' : 'User', color: u.role === 'admin' ? '#7c6cf2' : '#9a9aab' },
                                     { label: 'Bookings', value: `${u.bookings}` },
                                     { label: 'Total Spent', value: `$${u.totalSpent}` },
-                                    {
-                                      label: 'Status',
-                                      value: u.isVerified ? 'Verified' : 'Unverified',
-                                      color: u.isVerified ? '#2fd18f' : '#f2a13c',
-                                    },
+                                    { label: 'Status', value: u.isVerified ? 'Verified' : 'Unverified', color: u.isVerified ? '#2fd18f' : '#f2a13c' },
                                     { label: 'Joined', value: new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
                                   ],
                                 })}
@@ -2022,9 +2001,9 @@ export default function AdminPage() {
             </div>
 
             {/* Desktop pagination */}
-            {userTotalPages > 1 && (
-              <div className="hidden md:flex items-center justify-between px-5 py-3 border-t border-[#23232f]">
-                <span className="text-[13px] text-[#6b6b7b]">Showing {userPage * USERS_PER_PAGE + 1}–{Math.min((userPage + 1) * USERS_PER_PAGE, filteredUsers.length)} of {filteredUsers.length}</span>
+            <div className="hidden md:flex items-center justify-between px-5 py-3 border-t border-[#23232f]">
+              <span className="text-[13px] text-[#6b6b7b]">Showing {filteredUsers.length > 0 ? userPage * USERS_PER_PAGE + 1 : 0}–{Math.min((userPage + 1) * USERS_PER_PAGE, filteredUsers.length)} of {filteredUsers.length} users</span>
+              {userTotalPages > 1 && (
                 <div className="flex items-center gap-2">
                   <button onClick={() => setUserPage((p) => Math.max(0, p - 1))} disabled={userPage === 0} className="px-3 py-1.5 rounded-[6px] text-[13px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Prev</button>
                   {Array.from({ length: userTotalPages }, (_, i) => (
@@ -2032,8 +2011,8 @@ export default function AdminPage() {
                   ))}
                   <button onClick={() => setUserPage((p) => Math.min(userTotalPages - 1, p + 1))} disabled={userPage >= userTotalPages - 1} className="px-3 py-1.5 rounded-[6px] text-[13px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Next</button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Mobile filters */}
             <div className="block md:hidden px-4 py-3 border-b border-[#23232f] space-y-2.5">
@@ -2133,8 +2112,7 @@ export default function AdminPage() {
               </div>
             )}
 
-            <div className="px-5 py-4 border-t border-[#23232f] flex items-center gap-5">
-              <span className="text-[13px] text-[#9a9aab]">Showing {filteredUsers.length} of {users.length} users</span>
+            <div className="px-5 py-3 border-t border-[#23232f] flex items-center gap-5">
               <span className="text-[13px] text-[#6b6b7b]">{filteredUsers.filter((u) => u.role === 'admin').length} admin</span>
               <span className="text-[13px] text-[#6b6b7b]">{filteredUsers.filter((u) => u.isVerified).length} verified</span>
             </div>
