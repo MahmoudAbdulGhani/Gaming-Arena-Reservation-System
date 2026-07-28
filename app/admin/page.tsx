@@ -479,7 +479,7 @@ function CardPaymentForm({ clientSecret, totalPrice, onComplete, onError }: { cl
       </div>
       <div className="p-3 rounded-xl bg-[#7c6cf2]/10 border border-[#7c6cf2]/20">
         <p className="text-[11px] text-[#9a9aab] leading-relaxed">
-          Test mode &mdash; use card <span className="font-mono">4242 4242 4242 4242</span>, any future date, any CVC.
+          Test mode &ndash; use card <span className="font-mono">4242 4242 4242 4242</span>, any future date, any CVC.
         </p>
       </div>
       <div className="flex items-center justify-between pt-2 border-t border-[#23232f]">

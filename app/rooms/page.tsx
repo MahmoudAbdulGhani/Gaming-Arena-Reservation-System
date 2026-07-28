@@ -5,7 +5,7 @@ import Navbar from '@/components/navbar'
 import Footer from '@/components/footer'
 import RoomCard from '@/components/room-card'
 import type { Room, Device, RoomType, RoomAvailability } from '@/lib/types'
-import { Search, SlidersHorizontal, Monitor, Gamepad2, Glasses, Users, LayoutGrid, List } from 'lucide-react'
+import { Search, SlidersHorizontal, Monitor, Gamepad2, Glasses, Users, LayoutGrid } from 'lucide-react'
 
 const roomTypes: { label: string; value: RoomType | 'All'; icon: React.ReactNode }[] = [
   { label: 'All', value: 'All', icon: <LayoutGrid className="w-4 h-4" /> },
@@ -33,7 +33,6 @@ export default function RoomsPage() {
   const [selectedType, setSelectedType] = useState<RoomType | 'All'>('All')
   const [selectedStatus, setSelectedStatus] = useState<RoomAvailability | 'All'>('All')
   const [maxPrice, setMaxPrice] = useState(100)
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'name'>('name')
 
   useEffect(() => {
@@ -112,7 +111,7 @@ export default function RoomsPage() {
               Gaming Rooms
             </h1>
             <p className="text-[#9BA3B7]">
-              {filtered.length} room{filtered.length !== 1 ? 's' : ''} &mdash;{' '}
+              {filtered.length} room{filtered.length !== 1 ? 's' : ''} &ndash;{' '}
               <span className="text-[#33E6A0] font-medium">{totalAvailableDevices} devices available</span>
             </p>
           </div>
@@ -120,8 +119,8 @@ export default function RoomsPage() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="flex flex-col gap-4 mb-8">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full">
+              <div className="relative w-full sm:w-80 lg:w-130">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9BA3B7]" aria-hidden="true" />
                 <input
                   type="search"
@@ -133,7 +132,7 @@ export default function RoomsPage() {
                 />
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap flex-1">
                 <SlidersHorizontal className="w-4 h-4 text-[#9BA3B7]" aria-hidden="true" />
                 <select
                   value={sortBy}
@@ -157,46 +156,6 @@ export default function RoomsPage() {
                   <option value="booked">Booked</option>
                 </select>
 
-                <div className="flex rounded-xl border border-[#262D3D] overflow-hidden" role="group" aria-label="View mode">
-                  <button
-                    onClick={() => setViewMode('grid')}
-                    className={`p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors duration-200 ${viewMode === 'grid' ? 'bg-[#7C5CFF] text-white' : 'bg-[#131824] text-[#9BA3B7] hover:text-[#F5F6FA]'
-                      }`}
-                    aria-label="Grid view"
-                    aria-pressed={viewMode === 'grid'}
-                  >
-                    <LayoutGrid className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('list')}
-                    className={`p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors duration-200 ${viewMode === 'list' ? 'bg-[#7C5CFF] text-white' : 'bg-[#131824] text-[#9BA3B7] hover:text-[#F5F6FA]'
-                      }`}
-                    aria-label="List view"
-                    aria-pressed={viewMode === 'list'}
-                  >
-                    <List className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by room type">
-              {roomTypes.map(({ label, value, icon }) => (
-                <button
-                  key={value}
-                  onClick={() => setSelectedType(value)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 min-h-[44px] ${selectedType === value
-                      ? 'bg-[#7C5CFF] text-white'
-                      : 'bg-[#131824] text-[#9BA3B7] border border-[#262D3D] hover:border-[#7C5CFF]/40 hover:text-[#F5F6FA]'
-                    }`}
-                  aria-pressed={selectedType === value}
-                >
-                  {icon}
-                  {label}
-                </button>
-              ))}
-
-              <div className="flex items-center gap-3 ml-auto">
                 <label className="text-sm text-[#9BA3B7] whitespace-nowrap">
                   Max:&nbsp;
                   <span className="text-[#F5F6FA] font-medium" style={{ fontFamily: 'var(--font-mono)' }}>
@@ -206,13 +165,30 @@ export default function RoomsPage() {
                 <input
                   type="range"
                   min="10"
-                  max="50"
+                  max="100"
                   value={maxPrice}
                   onChange={(e) => setMaxPrice(Number(e.target.value))}
-                  className="w-32 accent-[#7C5CFF]"
+                  className="w-65 accent-[#7C5CFF]"
                   aria-label="Maximum price per hour"
                 />
               </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by room type">
+              {roomTypes.map(({ label, value, icon }) => (
+                <button
+                  key={value}
+                  onClick={() => setSelectedType(value)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 min-h-[44px] ${selectedType === value
+                    ? 'bg-[#7C5CFF] text-white'
+                    : 'bg-[#131824] text-[#9BA3B7] border border-[#262D3D] hover:border-[#7C5CFF]/40 hover:text-[#F5F6FA]'
+                    }`}
+                  aria-pressed={selectedType === value}
+                >
+                  {icon}
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -224,18 +200,11 @@ export default function RoomsPage() {
               <p className="text-[#9BA3B7]">Try adjusting your filters.</p>
             </div>
           ) : (
-            <div
-              className={
-                viewMode === 'grid'
-                  ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'
-                  : 'flex flex-col gap-4'
-              }
-            >
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filtered.map((room) => (
                 <RoomCard
                   key={room._id}
                   room={room}
-                  compact={viewMode === 'list'}
                   availableCount={devicesMap[room._id]?.filter((d) => d.status === 'available').length}
                   totalCount={devicesMap[room._id]?.length}
                 />

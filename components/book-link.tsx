@@ -8,15 +8,17 @@ interface BookLinkProps {
   href: string
   children: ReactNode
   className?: string
+  onClick?: () => void
 }
 
-export default function BookLink({ href, children, className }: BookLinkProps) {
+export default function BookLink({ href, children, className, onClick }: BookLinkProps) {
   const router = useRouter()
   const { user, loading } = useAuth()
 
   function handleClick(e: React.MouseEvent) {
     e.preventDefault()
     if (loading) return
+    onClick?.()
     if (!user) {
       router.push(`/auth/login?redirect=${encodeURIComponent(href)}`)
     } else {
