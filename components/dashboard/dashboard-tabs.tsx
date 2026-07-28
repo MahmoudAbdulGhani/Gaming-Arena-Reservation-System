@@ -97,7 +97,7 @@ const tabs: { id: TabId; label: string; count?: number }[] = [
     </div>
 
     {activeTab === 'overview' && (
-        <OverviewTab bookings={bookings} onUpdateBooking={updateBooking} onViewAllUpcoming={() => setActiveTab('upcoming')} />
+        <OverviewTab user={user} bookings={bookings} onUpdateBooking={updateBooking} onViewAllUpcoming={() => setActiveTab('upcoming')} />
     )}
     {activeTab === 'upcoming' && <UpcomingTab bookings={bookings} onUpdateBooking={updateBooking}/>}
     {activeTab === 'history' && <HistoryTab bookings={bookings} onUpdateBooking={updateBooking} />}
