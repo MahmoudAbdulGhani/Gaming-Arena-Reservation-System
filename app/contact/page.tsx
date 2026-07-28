@@ -19,9 +19,9 @@ const contactInfo = [
   {
     icon: Phone,
     label: 'Phone',
-    value: '+961 30 60 90',
+    value: '+961 03 30 60 90',
     detail: 'Mon–Sun, 10 AM – 12 AM',
-    href: 'tel:+961306090',
+    href: 'tel:+9610000000',
   },
   {
     icon: Mail,
