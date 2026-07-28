@@ -70,6 +70,7 @@ export interface Booking {
   totalPrice: number
   status: BookingStatus
   paymentStatus: PaymentStatus
+  paymentMethod?: string
   paymentId?: string
   confirmationMessage?: string
   createdAt: string
@@ -150,4 +151,16 @@ export type RoomAdminStatus = Extract<RoomStatus, 'active' | 'inactive'>
 export interface UpdateRoomStatusPayload {
   roomId: string
   status: RoomAdminStatus
+}
+
+// ──────────────────────────────────────────────
+//  Time formatting
+// ──────────────────────────────────────────────
+
+/** Convert "14:00" → "2:00 PM" */
+export function formatTime12(time24: string): string {
+  const [h] = time24.split(':').map(Number)
+  const period = h >= 12 ? 'PM' : 'AM'
+  const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h
+  return `${hour12}:00 ${period}`
 }

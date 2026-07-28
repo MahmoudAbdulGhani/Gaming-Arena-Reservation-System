@@ -1,39 +1,56 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { ChevronLeft, Cpu, Zap, CheckCircle2 } from 'lucide-react'
 import type { BookingData } from '@/app/booking/page'
 import type { Device } from '@/lib/types'
 
 interface Props {
   bookingData: BookingData
-  onComplete: (devices: Device[]) => void
+  onComplete: (data: { devices: Device[]; totalPrice: number }) => void
   onBack: () => void
 }
 
 export default function BookingStepDevices({ bookingData, onBack, onComplete }: Props) {
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [devices, setDevices] = useState<Device[]>([])
   const [loading, setLoading] = useState(true)
+  const [bookedDeviceIds, setBookedDeviceIds] = useState<Set<string>>(new Set())
 
-  const { room } = bookingData
+  const { room, date, startTime, durationHours } = bookingData
+
+  const endTime = useMemo(() => {
+    if (!startTime) return ''
+    const h = Number(startTime.split(':')[0])
+    return `${String(h + (durationHours ?? 1)).padStart(2, '0')}:00`
+  }, [startTime, durationHours])
 
   useEffect(() => {
     if (!room) return
     setLoading(true)
-    setSelectedId(null)
-    fetch(`/api/rooms/${room._id}/devices`)
-      .then(r => r.json())
-      .then((data: Device[]) => {
-        setDevices(data)
-        setLoading(false)
-      })
-  }, [room?._id])
+    setSelectedIds(new Set())
+    Promise.all([
+      fetch(`/api/rooms/${room._id}/devices`).then((r) => r.json()),
+      date && startTime && endTime
+        ? fetch(`/api/bookings/check-conflicts?roomId=${room._id}&date=${date}&startTime=${startTime}&endTime=${endTime}`).then((r) => r.json())
+        : Promise.resolve({ bookedDeviceIds: [] }),
+    ]).then(([devicesData, conflicts]) => {
+      setDevices(devicesData as Device[])
+      setBookedDeviceIds(new Set<string>(conflicts.bookedDeviceIds ?? []))
+      setLoading(false)
+    })
+  }, [room?._id, date, startTime, endTime])
+
+  const toggleDevice = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   if (!room) return null
-
-  const roomDevices = devices
-  const availableDevices = roomDevices.filter((d) => d.status === 'available')
 
   const deviceStatusConfig = {
     available: {
@@ -62,7 +79,15 @@ export default function BookingStepDevices({ bookingData, onBack, onComplete }: 
     },
   }
 
-  const selectedDevice = selectedId ? roomDevices.find((d) => d._id === selectedId) ?? null : null
+  const getDeviceConfig = (device: Device) => {
+    if (device.status === 'maintenance') return deviceStatusConfig.maintenance
+    if (device.status === 'booked' || bookedDeviceIds.has(device._id)) return deviceStatusConfig.booked
+    return deviceStatusConfig.available
+  }
+
+  const availableCount = devices.filter((d) => d.status !== 'maintenance' && !bookedDeviceIds.has(d._id)).length
+  const selectedDevices = devices.filter((d) => selectedIds.has(d._id))
+  const totalPrice = room.pricePerHour * selectedDevices.length * (durationHours ?? 1)
 
   if (loading) {
     return (
@@ -79,8 +104,12 @@ export default function BookingStepDevices({ bookingData, onBack, onComplete }: 
           Select Devices
         </h2>
         <p className="text-[#9BA3B7]">
-          Pick an available device to reserve in{' '}
-          <span className="text-[#F5F6FA] font-medium">{room.name}</span>. One device per reservation.
+          Pick one or more available devices in{' '}
+          <span className="text-[#F5F6FA] font-medium">{room.name}</span>{' '}
+          for{' '}
+          <span className="text-[#7C5CFF] font-medium">{durationHours ?? 1}h</span>{' '}
+          starting at{' '}
+          <span className="text-[#F5F6FA] font-medium">{startTime}</span>.
         </p>
       </div>
 
@@ -90,7 +119,7 @@ export default function BookingStepDevices({ bookingData, onBack, onComplete }: 
         <div className="flex-1 min-w-0">
           <span className="text-sm text-[#F5F6FA] font-medium">{room.name}</span>
           <span className="text-sm text-[#9BA3B7] ml-2">
-            &mdash; {availableDevices.length} of {roomDevices.length} devices free
+            &mdash; {availableCount} of {devices.length} devices free
           </span>
         </div>
         <span className="text-sm text-[#7C5CFF] font-bold shrink-0" style={{ fontFamily: 'var(--font-mono)' }}>
@@ -101,30 +130,30 @@ export default function BookingStepDevices({ bookingData, onBack, onComplete }: 
       {/* Devices grid */}
       <div
         className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6"
-        role="radiogroup"
-        aria-label="Select a device to reserve"
+        role="group"
+        aria-label="Select devices to reserve"
       >
-        {roomDevices.map((device) => {
-          const cfg = deviceStatusConfig[device.status]
-          const isSelected = selectedId === device._id
+        {devices.map((device) => {
+          const cfg = getDeviceConfig(device)
+          const isSelected = selectedIds.has(device._id)
+          const disabled = cfg.disabled
 
           return (
             <button
               key={device._id}
-              onClick={() => { if (!cfg.disabled) setSelectedId(isSelected ? null : device._id) }}
-              disabled={cfg.disabled}
-              role="radio"
+              onClick={() => { if (!disabled) toggleDevice(device._id) }}
+              disabled={disabled}
               aria-checked={isSelected}
-              aria-disabled={cfg.disabled}
+              aria-disabled={disabled}
               className={`relative text-left p-4 rounded-xl border transition-all duration-200 cursor-pointer ${
-                cfg.disabled
+                disabled
                   ? cfg.cardBg + ' cursor-not-allowed'
                   : isSelected
                   ? cfg.selectedBg
                   : cfg.cardBg
               }`}
             >
-              {isSelected && !cfg.disabled && (
+              {isSelected && !disabled && (
                 <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-[#7C5CFF] flex items-center justify-center">
                   <CheckCircle2 className="w-4 h-4 text-white" aria-hidden="true" />
                 </div>
@@ -158,23 +187,26 @@ export default function BookingStepDevices({ bookingData, onBack, onComplete }: 
       </div>
 
       {/* Selection summary */}
-      {selectedDevice && (
-        <div className="p-4 rounded-xl bg-[#1B2130] border border-[#7C5CFF]/30 mb-6">
-          <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-[#9BA3B7]">Selected device</span>
+      {selectedDevices.length > 0 && (
+        <div className="p-4 rounded-xl bg-[#1B2130] border border-[#7C5CFF]/30 mb-6 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-[#9BA3B7]">Selected devices</span>
             <span className="text-[#F5F6FA] font-semibold" style={{ fontFamily: 'var(--font-mono)' }}>
-              {selectedDevice.deviceLabel}
+              {selectedDevices.map((d) => d.deviceLabel).join(', ')}
             </span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-[#9BA3B7]">Price per hour</span>
-            <span className="text-[#7C5CFF] font-bold text-lg" style={{ fontFamily: 'var(--font-mono)' }}>
-              ${room.pricePerHour}/hr
+            <span className="text-[#9BA3B7]">Price breakdown</span>
+            <span className="text-[#F5F6FA] font-medium" style={{ fontFamily: 'var(--font-mono)' }}>
+              {selectedDevices.length} × ${room.pricePerHour}/hr × {durationHours ?? 1}h
             </span>
           </div>
-          <p className="text-xs text-[#9BA3B7] mt-2">
-            Final total depends on session duration (selected in next step).
-          </p>
+          <div className="flex items-center justify-between text-sm border-t border-[#262D3D] pt-2">
+            <span className="text-[#9BA3B7]">Total price</span>
+            <span className="text-[#7C5CFF] font-bold text-lg" style={{ fontFamily: 'var(--font-mono)' }}>
+              ${totalPrice}
+            </span>
+          </div>
         </div>
       )}
 
@@ -188,12 +220,14 @@ export default function BookingStepDevices({ bookingData, onBack, onComplete }: 
           Back
         </button>
         <button
-          onClick={() => onComplete(selectedDevice ? [selectedDevice] : [])}
-          disabled={!selectedDevice}
+          onClick={() => onComplete({ devices: selectedDevices, totalPrice })}
+          disabled={selectedDevices.length === 0}
           className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white btn-primary-gradient transition-all duration-200 min-h-[44px] disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Zap className="w-4 h-4" aria-hidden="true" />
-          Continue
+          {selectedDevices.length > 0
+            ? `Continue with ${selectedDevices.length} device${selectedDevices.length !== 1 ? 's' : ''}`
+            : 'Continue'}
         </button>
       </div>
     </div>

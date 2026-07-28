@@ -15,8 +15,8 @@ import type { Room, Device } from '@/lib/types'
 
 const steps = [
   { number: 1, label: 'Choose Room' },
-  { number: 2, label: 'Select Devices' },
-  { number: 3, label: 'Date & Time' },
+  { number: 2, label: 'Date & Time' },
+  { number: 3, label: 'Select Devices' },
   { number: 4, label: 'Confirm & Pay' },
 ]
 
@@ -28,11 +28,13 @@ export interface BookingData {
   durationHours: number
   totalPrice: number
   paymentMethod: 'card' | 'cash'
+  targetUserId?: string
 }
 
 function BookingContent() {
   const searchParams = useSearchParams()
   const preselectedRoom = searchParams.get('room')
+  const forUserId = searchParams.get('for') ?? undefined
 
   const [rooms, setRooms] = useState<Room[]>([])
   useEffect(() => { fetch('/api/rooms').then(r => r.json()).then(setRooms) }, [])
@@ -49,6 +51,7 @@ function BookingContent() {
     durationHours: 1,
     totalPrice: 0,
     paymentMethod: 'card',
+    targetUserId: forUserId,
   })
 
   const handleStepComplete = (data: Partial<BookingData>) => {
@@ -126,14 +129,14 @@ function BookingContent() {
           />
         )}
         {currentStep === 2 && (
-          <BookingStepDevices
+          <BookingStepDateTime
             bookingData={bookingData}
-            onComplete={(devices) => handleStepComplete({ devices })}
+            onComplete={(data) => handleStepComplete(data)}
             onBack={() => setCurrentStep(1)}
           />
         )}
         {currentStep === 3 && (
-          <BookingStepDateTime
+          <BookingStepDevices
             bookingData={bookingData}
             onComplete={(data) => handleStepComplete(data)}
             onBack={() => setCurrentStep(2)}

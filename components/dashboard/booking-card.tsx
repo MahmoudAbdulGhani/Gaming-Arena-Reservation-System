@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { Calendar, Clock, DollarSign, Monitor, Gamepad2, Glasses, Users } from "lucide-react";
 import type { Booking, BookingStatus, RoomType } from "@/lib/types";
+import { formatTime12 } from "@/lib/types";
 import { checkBookingPolicy } from '@/lib/booking-policy'
 
 
@@ -108,7 +109,7 @@ export default function BookingCard({ booking, onModify, onCancel }: BookingCard
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5" aria-hidden="true" />
-              {booking.startTime} · {booking.durationHours}h
+              {formatTime12(booking.startTime)} · {booking.durationHours}h
             </span>
             <span className="inline-flex items-center gap-1.5">
               <DollarSign className="w-3.5 h-3.5" aria-hidden="true" />${booking.totalPrice}

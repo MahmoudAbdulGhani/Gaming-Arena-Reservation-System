@@ -121,7 +121,7 @@ export default async function RoomDetailPage({ params }: Props) {
             <div className="lg:col-span-2">
               <div className="relative h-[400px] rounded-2xl overflow-hidden mb-6">
                 <Image
-                  src={roomData.images[0] || typeDefaultImages[roomData.type]}
+                  src={roomData.images[0] || typeDefaultImages[roomData.type] || '/images/room-pc.png'}
                   alt={roomData.name}
                   fill
                   className="object-cover"
@@ -227,7 +227,7 @@ export default async function RoomDetailPage({ params }: Props) {
                   >
                     <div className="relative h-40 overflow-hidden">
                       <Image
-                        src={typeDefaultImages[r.type]}
+                        src={r.images?.[0] || typeDefaultImages[r.type] || '/images/room-pc.png'}
                         alt={r.name}
                         fill
                         className="object-cover transition-transform duration-300 group-hover:scale-105"
