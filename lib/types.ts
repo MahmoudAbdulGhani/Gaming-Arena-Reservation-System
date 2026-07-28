@@ -70,6 +70,7 @@ export interface Booking {
   totalPrice: number
   status: BookingStatus
   paymentStatus: PaymentStatus
+  paymentMethod?: string
   paymentId?: string
   confirmationMessage?: string
   createdAt: string

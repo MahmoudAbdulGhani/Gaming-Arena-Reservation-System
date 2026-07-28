@@ -1,13 +1,23 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
-import { Search, Plus, ExternalLink, Pencil, Eye, Trash2, X, Download } from 'lucide-react'
+import { Search, Plus, ExternalLink, Pencil, Eye, Trash2, X, Download, Lock, AlertCircle, CreditCard, Banknote, CheckCircle2 } from 'lucide-react'
 import Navbar from '@/components/navbar'
-import { mockRooms, mockDevices, mockBookings, mockUsers } from '@/lib/mock-data'
-import type { RoomType } from '@/lib/types'
+import type { Device, RoomType, User, Room, Booking } from '@/lib/types'
+import { CardElement, useStripe, useElements, Elements } from '@stripe/react-stripe-js'
+import { loadStripe } from '@stripe/stripe-js'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+
+let stripePromise: ReturnType<typeof loadStripe> | null = null
+function getStripe() {
+  if (!stripePromise) {
+    const key = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+    if (key) stripePromise = loadStripe(key)
+  }
+  return stripePromise
+}
 
 const typeColors: Record<RoomType, string> = {
   pc: '#7c6cf2',
@@ -32,10 +42,12 @@ const roomThumbs: Record<string, string> = {
   r6: '/images/room-private.png',
 }
 
-const bookingIds = ['GZ-BEBQBE', 'GZ-XQLT77', 'GZ-MN3KP9', 'GZ-PP2WRJ', 'GZ-CANC01', 'GZ-PDN991']
+function getDisplayId(id: string) {
+  return `GZ-${id.slice(-6).toUpperCase()}`
+}
 
-function getRoomStat(roomId: string) {
-  const devs = mockDevices.filter((d) => d.roomId === roomId)
+function getRoomStat(roomId: string, devices: Device[]) {
+  const devs = devices.filter((d) => d.roomId === roomId)
   return { available: devs.filter((d) => d.status === 'available').length, total: devs.length }
 }
 
@@ -245,10 +257,509 @@ function RoomEditModal({ room, onSave, onClose }: { room: { id: string; name: st
               Cancel
             </button>
             <button
-              onClick={() => onSave(room.id, name, parseInt(price) || 0, type)}
+              onClick={() => onSave(room.id, { name, type, pricePerHour: parseInt(price) || 0, images: room.images, status: room.status })}
               className="flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-white border-none cursor-pointer btn-primary-gradient glow-violet transition-all duration-200"
             >
               Save
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface DeviceFormData {
+  roomId: string
+  deviceLabel: string
+  specs: string
+  status: string
+}
+
+function AddDeviceModal({ rooms, onSave, onClose }: { rooms: Room[]; onSave: (data: DeviceFormData) => void; onClose: () => void }) {
+  const [roomId, setRoomId] = useState(rooms[0]?._id || '')
+  const [deviceLabel, setDeviceLabel] = useState('')
+  const [specs, setSpecs] = useState('')
+  const [status, setStatus] = useState('available')
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-[#12121a] border border-[#23232f] rounded-[16px] w-full max-w-sm mx-4 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>Add Device</h3>
+          <button onClick={onClose} className="p-1.5 rounded-[8px] text-[#6b6b7b] hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Room</label>
+            <select
+              value={roomId}
+              onChange={(e) => setRoomId(e.target.value)}
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer"
+            >
+              {rooms.map((r) => <option key={r._id} value={r._id}>{r.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Device Label</label>
+            <input
+              type="text"
+              value={deviceLabel}
+              onChange={(e) => setDeviceLabel(e.target.value)}
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Specs</label>
+            <input
+              type="text"
+              value={specs}
+              onChange={(e) => setSpecs(e.target.value)}
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Status</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as 'available' | 'booked' | 'maintenance')}
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer"
+            >
+              <option value="available">Available</option>
+              <option value="booked">Booked</option>
+              <option value="maintenance">Maintenance</option>
+            </select>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-[#9a9aab] border border-[#23232f] bg-transparent hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer">
+              Cancel
+            </button>
+            <button
+              onClick={() => onSave({ roomId, deviceLabel, specs, status })}
+              className="flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-white border-none cursor-pointer btn-primary-gradient glow-violet transition-all duration-200"
+            >
+              Add Device
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function EditDeviceModal({ device, rooms, onSave, onClose }: { device: Device; rooms: Room[]; onSave: (id: string, data: DeviceFormData) => void; onClose: () => void }) {
+  const [deviceLabel, setDeviceLabel] = useState(device.deviceLabel)
+  const [specs, setSpecs] = useState(device.specs)
+  const [status, setStatus] = useState(device.status)
+  const room = rooms.find((r) => r._id === device.roomId)
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-[#12121a] border border-[#23232f] rounded-[16px] w-full max-w-sm mx-4 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>Edit Device</h3>
+          <button onClick={onClose} className="p-1.5 rounded-[8px] text-[#6b6b7b] hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Room</label>
+            <div className="bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#6b6b7b]">{room?.name || 'Unknown'}</div>
+          </div>
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Device Label</label>
+            <input
+              type="text"
+              value={deviceLabel}
+              onChange={(e) => setDeviceLabel(e.target.value)}
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Specs</label>
+            <input
+              type="text"
+              value={specs}
+              onChange={(e) => setSpecs(e.target.value)}
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Status</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as 'available' | 'booked' | 'maintenance')}
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer"
+            >
+              <option value="available">Available</option>
+              <option value="booked">Booked</option>
+              <option value="maintenance">Maintenance</option>
+            </select>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-[#9a9aab] border border-[#23232f] bg-transparent hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer">
+              Cancel
+            </button>
+            <button
+              onClick={() => onSave(device._id, { roomId: device.roomId, deviceLabel, specs, status })}
+              className="flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-white border-none cursor-pointer btn-primary-gradient glow-violet transition-all duration-200"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CardPaymentForm({ clientSecret, totalPrice, onComplete, onError }: { clientSecret: string; totalPrice: number; onComplete: () => void | Promise<void>; onError: (msg: string) => void }) {
+  const stripe = useStripe()
+  const elements = useElements()
+  const [processing, setProcessing] = useState(false)
+  const [cardComplete, setCardComplete] = useState(false)
+
+  async function handlePay() {
+    if (!stripe || !elements) return
+    setProcessing(true)
+    const card = elements.getElement(CardElement)
+    if (!card) { setProcessing(false); return }
+
+    const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+      payment_method: { card, billing_details: { name: 'Admin' } },
+    })
+
+    if (stripeError) {
+      onError(stripeError.message ?? 'Payment failed')
+      setProcessing(false)
+      return
+    }
+
+    if (paymentIntent?.status === 'succeeded') {
+      try {
+        await onComplete()
+      } catch {
+        // onComplete has its own error handling
+      }
+      setProcessing(false)
+    } else {
+      onError(paymentIntent ? `Payment ${paymentIntent.status}` : 'Payment failed')
+      setProcessing(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Lock className="w-4 h-4 text-[#7c6cf2]" />
+        <span className="text-[14px] font-semibold text-[#f5f5f7]">Card Payment</span>
+      </div>
+      <div className="p-4 rounded-xl bg-[#0a0a0f] border border-[#23232f]">
+        <label className="block text-[12px] text-[#6b6b7b] mb-3">Card Details</label>
+        <CardElement
+          options={{
+            style: {
+              base: {
+                fontSize: '16px',
+                color: '#f5f5f7',
+                fontFamily: 'monospace',
+                '::placeholder': { color: '#6b6b7b' },
+              },
+              invalid: { color: '#f25c78' },
+            },
+            hidePostalCode: true,
+          }}
+          onChange={(e) => setCardComplete(e.complete)}
+        />
+      </div>
+      <div className="p-3 rounded-xl bg-[#7c6cf2]/10 border border-[#7c6cf2]/20">
+        <p className="text-[11px] text-[#9a9aab] leading-relaxed">
+          Test mode &mdash; use card <span className="font-mono">4242 4242 4242 4242</span>, any future date, any CVC.
+        </p>
+      </div>
+      <div className="flex items-center justify-between pt-2 border-t border-[#23232f]">
+        <span className="text-[14px] text-[#6b6b7b]">Total</span>
+        <span className="text-[20px] font-bold text-[#f5f5f7]">${totalPrice}</span>
+      </div>
+      <button
+        onClick={handlePay}
+        disabled={processing || !stripe || !cardComplete}
+        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-[10px] text-[14px] font-semibold text-white border-none cursor-pointer btn-primary-gradient glow-violet transition-all duration-200 disabled:opacity-60"
+      >
+        {processing ? (
+          <>
+            <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+            Processing...
+          </>
+        ) : (
+          <>
+            <Lock className="w-4 h-4" />
+            Pay ${totalPrice}
+          </>
+        )}
+      </button>
+    </div>
+  )
+}
+
+function AddReservationModal({ rooms, devices, users, onSave, onSuccess, onClose }: { rooms: Room[]; devices: Device[]; users: { _id: string; name: string; email: string; role: string }[]; onSave: (data: { userId: string; roomId: string; deviceIds: string[]; bookingDate: string; startTime: string; durationHours: number; totalPrice: number; paymentMethod: string }) => void; onSuccess?: () => void; onClose: () => void }) {
+  const customers = users.filter((u) => u.role === 'customer')
+  const [userId, setUserId] = useState(customers[0]?._id || '')
+  const [roomId, setRoomId] = useState(rooms[0]?._id || '')
+  const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0])
+  const [startTime, setStartTime] = useState('10:00')
+  const [durationHours, setDurationHours] = useState(2)
+  const [paymentMethod, setPaymentMethod] = useState('card')
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState<string[]>([])
+  const [step, setStep] = useState<'form' | 'payment'>('form')
+  const [clientSecret, setClientSecret] = useState('')
+  const [paymentError, setPaymentError] = useState('')
+  const [isProcessing, setIsProcessing] = useState(false)
+  const selectedRoom = rooms.find((r) => r._id === roomId)
+  const roomDevices = devices.filter((d) => d.roomId === roomId && d.status === 'available')
+  const totalPrice = (selectedRoom?.pricePerHour || 0) * durationHours
+
+  function toggleDevice(id: string) {
+    setSelectedDeviceIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
+  }
+
+  async function handleCreateReservation() {
+    if (paymentMethod === 'cash') {
+      onSave({ userId, roomId, deviceIds: selectedDeviceIds, bookingDate, startTime, durationHours, totalPrice, paymentMethod })
+      return
+    }
+
+    setIsProcessing(true)
+    setPaymentError('')
+    try {
+      const piRes = await fetch('/api/stripe/create-payment-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: Math.round(totalPrice * 100), currency: 'usd' }),
+      })
+      const pi = await piRes.json()
+      if (!piRes.ok) throw new Error(pi.error || 'Failed to create payment')
+
+      setClientSecret(pi.clientSecret)
+      setStep('payment')
+    } catch (err) {
+      setPaymentError(err instanceof Error ? err.message : 'Failed to create reservation')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  if (step === 'payment') {
+    const stripe = getStripe()
+    if (!stripe) {
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+          <div className="bg-[#12121a] border border-[#23232f] rounded-[16px] w-full max-w-sm mx-4 p-6 shadow-2xl">
+            <div className="text-center">
+              <AlertCircle className="w-10 h-10 text-[#f2a13c] mx-auto mb-3" />
+              <p className="text-[14px] text-[#9a9aab]">Stripe is not configured. Add your Stripe publishable key to .env.local</p>
+              <button onClick={onClose} className="mt-4 px-4 py-2 rounded-[8px] text-[13px] font-semibold text-white bg-[#7c6cf2] border-none cursor-pointer">Close</button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+        <div className="bg-[#12121a] border border-[#23232f] rounded-[16px] w-full max-w-sm mx-4 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>Complete Payment</h3>
+            <button onClick={onClose} className="p-1.5 rounded-[8px] text-[#6b6b7b] hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <Elements stripe={stripe}>
+            <CardPaymentForm clientSecret={clientSecret} totalPrice={totalPrice} onComplete={async () => {
+              try {
+                const token = localStorage.getItem('gz_token')
+                const res = await fetch('/api/admin/bookings', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { authorization: `Bearer ${token}` } : {}),
+                  },
+                  body: JSON.stringify({ userId, roomId, deviceIds: selectedDeviceIds, bookingDate, startTime, durationHours, totalPrice, paymentMethod: 'card' }),
+                })
+                const booking = await res.json()
+                if (!res.ok) throw new Error(booking.error || 'Failed to create booking')
+                await fetch(`/api/admin/bookings/${booking._id}/approve-cash`, {
+                  method: 'PATCH',
+                  headers: token ? { authorization: `Bearer ${token}` } : {},
+                })
+                onSuccess?.()
+                onClose()
+              } catch (err) {
+                setPaymentError(err instanceof Error ? err.message : 'Payment succeeded but failed to create booking')
+                setStep('form')
+              }
+            }} onError={(msg) => setPaymentError(msg)} />
+          </Elements>
+          {paymentError && (
+            <div className="mt-3 p-3 rounded-xl bg-[#f25c78]/10 border border-[#f25c78]/20">
+              <p className="text-[12px] text-[#f25c78] flex items-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                {paymentError}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-[#12121a] border border-[#23232f] rounded-[16px] w-full max-w-sm mx-4 p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>Add Reservation</h3>
+          <button onClick={onClose} className="p-1.5 rounded-[8px] text-[#6b6b7b] hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">User</label>
+            <select
+              value={userId}
+              onChange={(e) => setUserId(e.target.value)}
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer"
+            >
+              {customers.map((u) => <option key={u._id} value={u._id}>{u.name} ({u.email})</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Room</label>
+            <select
+              value={roomId}
+              onChange={(e) => { setRoomId(e.target.value); setSelectedDeviceIds([]) }}
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer"
+            >
+              {rooms.map((r) => <option key={r._id} value={r._id}>{r.name} (${r.pricePerHour}/hr)</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Devices ({selectedDeviceIds.length} selected)</label>
+            <div className="max-h-32 overflow-y-auto space-y-1.5 bg-[#0a0a0f] border border-[#23232f] rounded-[8px] p-2">
+              {roomDevices.length === 0 ? (
+                <div className="text-[12px] text-[#6b6b7b] py-2 text-center">No available devices for this room</div>
+              ) : (
+                roomDevices.map((d) => (
+                  <label key={d._id} className="flex items-center gap-2 cursor-pointer px-2 py-1 rounded-[6px] hover:bg-[#23232f] transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={selectedDeviceIds.includes(d._id)}
+                      onChange={() => toggleDevice(d._id)}
+                      className="accent-[#7c6cf2]"
+                    />
+                    <span className="text-[13px] text-[#f5f5f7]">{d.deviceLabel}</span>
+                    <span className="text-[11px] text-[#6b6b7b] ml-auto">{d.specs}</span>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Date</label>
+            <input
+              type="date"
+              value={bookingDate}
+              onChange={(e) => setBookingDate(e.target.value)}
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Start Time</label>
+            <input
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Duration (hours)</label>
+            <input
+              type="number"
+              min={1}
+              max={12}
+              value={durationHours}
+              onChange={(e) => setDurationHours(parseInt(e.target.value) || 1)}
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Payment Method</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setPaymentMethod('card')}
+                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-[10px] text-[13px] font-semibold transition-all border ${
+                  paymentMethod === 'card'
+                    ? 'bg-[#7c6cf2]/15 border-[#7c6cf2] text-[#7c6cf2]'
+                    : 'bg-[#0a0a0f] border-[#23232f] text-[#6b6b7b] hover:border-[#7c6cf2]/40'
+                }`}
+              >
+                <CreditCard className="w-4 h-4" />
+                Card
+              </button>
+              <button
+                onClick={() => setPaymentMethod('cash')}
+                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-[10px] text-[13px] font-semibold transition-all border ${
+                  paymentMethod === 'cash'
+                    ? 'bg-[#2fd18f]/15 border-[#2fd18f] text-[#2fd18f]'
+                    : 'bg-[#0a0a0f] border-[#23232f] text-[#6b6b7b] hover:border-[#2fd18f]/40'
+                }`}
+              >
+                <Banknote className="w-4 h-4" />
+                Cash
+              </button>
+            </div>
+          </div>
+          <div className="pt-2 border-t border-[#23232f]">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[14px] text-[#6b6b7b]">Total Price</span>
+              <span className="text-[18px] font-bold text-[#f5f5f7]">${totalPrice}</span>
+            </div>
+            {paymentMethod === 'cash' && (
+              <p className="text-[11px] text-[#f2a13c] mt-1">Booking will be pending until cash payment is confirmed at the venue.</p>
+            )}
+          </div>
+          {paymentError && (
+            <div className="p-3 rounded-xl bg-[#f25c78]/10 border border-[#f25c78]/20">
+              <p className="text-[12px] text-[#f25c78] flex items-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                {paymentError}
+              </p>
+            </div>
+          )}
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-[#9a9aab] border border-[#23232f] bg-transparent hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer">
+              Cancel
+            </button>
+            <button
+              onClick={handleCreateReservation}
+              disabled={isProcessing}
+              className="flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-white border-none cursor-pointer btn-primary-gradient glow-violet transition-all duration-200 disabled:opacity-60 flex items-center justify-center gap-2"
+            >
+              {isProcessing ? (
+                <>
+                  <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                  Processing...
+                </>
+              ) : paymentMethod === 'card' ? (
+                <>
+                  <Lock className="w-4 h-4" />
+                  Continue to Payment
+                </>
+              ) : (
+                'Create Reservation'
+              )}
             </button>
           </div>
         </div>
@@ -303,8 +814,7 @@ interface AdminUser extends User {
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [search, setSearch] = useState('')
-  const [customerFilters, setCustomerFilters] = useState<string[]>([])
-  const [customerOpen, setCustomerOpen] = useState(false)
+  const [customerSearch, setCustomerSearch] = useState('')
   const [roomFilter, setRoomFilter] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -314,13 +824,22 @@ export default function AdminPage() {
   const [paymentFilter, setPaymentFilter] = useState('')
   const [roomSearch, setRoomSearch] = useState('')
   const [userSearch, setUserSearch] = useState('')
+  const [roleFilter, setRoleFilter] = useState('')
+  const [verifiedFilter, setVerifiedFilter] = useState('')
+  const [userBookingsMin, setUserBookingsMin] = useState('')
+  const [userBookingsMax, setUserBookingsMax] = useState('')
+  const [userSpentMin, setUserSpentMin] = useState('')
+  const [userSpentMax, setUserSpentMax] = useState('')
   const [deletedBookingIds, setDeletedBookingIds] = useState<string[]>([])
   const [deletedUserIds, setDeletedUserIds] = useState<string[]>([])
   const [detailModal, setDetailModal] = useState<{ open: boolean; title: string; details: DetailItem[] }>({ open: false, title: '', details: [] })
-  const [roomsData, setRoomsData] = useState(mockRooms)
-  const [editingRoom, setEditingRoom] = useState<{ id: string; name: string; pricePerHour: number; type: string } | null>(null)
+  const [roomsData, setRoomsData] = useState<Room[]>([])
+  const [editingRoom, setEditingRoom] = useState<{ id: string; name: string; pricePerHour: number; type: string; images: string; status: string } | null>(null)
   const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null)
   const [showAddRoom, setShowAddRoom] = useState(false)
+  const [showAddDevice, setShowAddDevice] = useState(false)
+  const [editingDevice, setEditingDevice] = useState<Device | null>(null)
+  const [showAddReservation, setShowAddReservation] = useState(false)
 
   const [rooms, setRooms] = useState<Room[]>([])
   const [devices, setDevices] = useState<Device[]>([])
@@ -364,7 +883,21 @@ export default function AdminPage() {
       ])
       setRooms(roomsData)
       setBookings(bookingsData)
-      setUsers(usersData.map((u: User) => ({ ...u, bookings: 0, totalSpent: 0 })))
+      const userStats = new Map<string, { bookings: number; totalSpent: number }>()
+      for (const b of bookingsData) {
+        const uid = b.userId?.toString?.() ?? b.userId
+        if (!uid) continue
+        const prev = userStats.get(uid) ?? { bookings: 0, totalSpent: 0 }
+        prev.bookings++
+        if (b.paymentStatus === 'paid' || b.status === 'completed') {
+          prev.totalSpent += b.totalPrice ?? 0
+        }
+        userStats.set(uid, prev)
+      }
+      setUsers(usersData.map((u: User) => {
+        const stats = userStats.get(u._id)
+        return { ...u, bookings: stats?.bookings ?? 0, totalSpent: stats?.totalSpent ?? 0 }
+      }))
       setDevices(devicesData)
     } catch (err) {
       setFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Failed to load data' })
@@ -375,6 +908,23 @@ export default function AdminPage() {
 
   useEffect(() => {
     fetchData()
+  }, [fetchData])
+
+  useEffect(() => {
+    if (window.location.search.includes('payment_success=1')) {
+      const bookingId = sessionStorage.getItem('pendingCardBookingId')
+      sessionStorage.removeItem('pendingCardBookingId')
+      if (bookingId) {
+        apiFetch(`/api/admin/bookings/${bookingId}/approve-cash`, { method: 'PATCH' }).catch(() => {})
+      }
+      setFeedback({ type: 'success', message: 'Payment successful! Reservation confirmed.' })
+      fetchData()
+      window.history.replaceState({}, '', '/admin')
+    }
+    if (window.location.search.includes('payment_cancelled=1')) {
+      setFeedback({ type: 'error', message: 'Payment was cancelled.' })
+      window.history.replaceState({}, '', '/admin')
+    }
   }, [fetchData])
 
   const handleAddRoom = useCallback(async (data: RoomFormData) => {
@@ -435,6 +985,18 @@ export default function AdminPage() {
     }
   }, [fetchData])
 
+  const handleRefund = useCallback(async (id: string) => {
+    try {
+      await apiFetch(`/api/admin/bookings/${id}/refund`, { method: 'PATCH' })
+      setFeedback({ type: 'success', message: 'Booking refunded successfully' })
+      setConfirmModal(null)
+      await fetchData()
+    } catch (err) {
+      setFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Failed to refund booking' })
+      setConfirmModal(null)
+    }
+  }, [fetchData])
+
   const handleDeleteBooking = useCallback(async (id: string) => {
     try {
       await apiFetch(`/api/admin/bookings/${id}`, { method: 'DELETE' })
@@ -457,6 +1019,59 @@ export default function AdminPage() {
     }
   }, [fetchData])
 
+  const handleAddDevice = useCallback(async (data: { roomId: string; deviceLabel: string; specs: string; status: string }) => {
+    try {
+      await apiFetch('/api/admin/devices', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+      setFeedback({ type: 'success', message: 'Device added successfully' })
+      setShowAddDevice(false)
+      await fetchData()
+    } catch (err) {
+      setFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Failed to add device' })
+    }
+  }, [fetchData])
+
+  const handleEditDevice = useCallback(async (id: string, data: { roomId: string; deviceLabel: string; specs: string; status: string }) => {
+    try {
+      await apiFetch(`/api/admin/devices/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      })
+      setFeedback({ type: 'success', message: 'Device updated successfully' })
+      setEditingDevice(null)
+      await fetchData()
+    } catch (err) {
+      setFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Failed to update device' })
+    }
+  }, [fetchData])
+
+  const handleDeleteDevice = useCallback(async (id: string) => {
+    try {
+      await apiFetch(`/api/admin/devices/${id}`, { method: 'DELETE' })
+      setFeedback({ type: 'success', message: 'Device deleted successfully' })
+      setConfirmModal(null)
+      await fetchData()
+    } catch (err) {
+      setFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Failed to delete device' })
+    }
+  }, [fetchData])
+
+  const handleAddReservation = useCallback(async (data: { userId: string; roomId: string; deviceIds: string[]; bookingDate: string; startTime: string; durationHours: number; totalPrice: number; paymentMethod: string }) => {
+    try {
+      await apiFetch('/api/admin/bookings', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+      setFeedback({ type: 'success', message: 'Reservation created successfully' })
+      setShowAddReservation(false)
+      await fetchData()
+    } catch (err) {
+      setFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Failed to create reservation' })
+    }
+  }, [fetchData])
+
   const availableDevices = devices.filter((d) => d.status === 'available').length
   const totalDeviceCount = devices.length
   const activeBookings = bookings.filter((b) => b.status === 'pending' || b.status === 'confirmed')
@@ -466,33 +1081,54 @@ export default function AdminPage() {
     .reduce((s, b) => s + b.totalPrice, 0)
 
   const revenueByType = (['pc', 'console', 'vr', 'private'] as RoomType[]).map((type) => {
-    const roomIds = mockRooms.filter((r) => r.type === type).map((r) => r._id)
-    const rev = mockBookings
+    const roomIds = rooms.filter((r) => r.type === type).map((r) => r._id)
+    const rev = bookings
       .filter((b) => roomIds.includes(b.roomId) && (b.status === 'completed' || b.paymentStatus === 'paid'))
       .reduce((s, b) => s + b.totalPrice, 0)
     return { label: typeLabels[type], value: rev, color: typeColors[type] }
   })
   const maxRev = Math.max(...revenueByType.map((r) => r.value), 1)
 
-  const customerNames = users.filter((u) => u.role === 'customer').map((u) => u.name).sort()
-
   const filteredBookings = bookings.filter((b) => {
-    if (!search) return true
+    if (deletedBookingIds.includes(b._id)) return false
     const q = search.toLowerCase()
-    const room = b.room?.name || ''
-    return room.toLowerCase().includes(q) || b.status.includes(q) || getDisplayId(b._id).toLowerCase().includes(q)
+    if (q && !getDisplayId(b._id).toLowerCase().includes(q) && !(b.room?.name || '').toLowerCase().includes(q) && !b.status.includes(q)) return false
+    if (customerSearch && !((b as any).user?.name || '').toLowerCase().includes(customerSearch.toLowerCase())) return false
+    if (roomFilter && (b.room?.name || '') !== roomFilter) return false
+    if (dateFrom && new Date(b.bookingDate) < new Date(dateFrom)) return false
+    if (dateTo && new Date(b.bookingDate) > new Date(dateTo + 'T23:59:59')) return false
+    if (amountMin && b.totalPrice < parseFloat(amountMin)) return false
+    if (amountMax && b.totalPrice > parseFloat(amountMax)) return false
+    if (statusFilter && b.status !== statusFilter) return false
+    if (paymentFilter && b.paymentStatus !== paymentFilter) return false
+    return true
   })
 
-  const filteredUsers = mockUsers.filter((u) => {
+  const filteredUsers = users.filter((u) => {
     if (deletedUserIds.includes(u._id)) return false
-    if (!userSearch) return true
-    const q = userSearch.toLowerCase()
-    return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+    if (userSearch) {
+      const q = userSearch.toLowerCase()
+      if (!u.name.toLowerCase().includes(q) && !u.email.toLowerCase().includes(q)) return false
+    }
+    if (roleFilter && u.role !== roleFilter) return false
+    if (verifiedFilter === 'verified' && !u.isVerified) return false
+    if (verifiedFilter === 'unverified' && u.isVerified) return false
+    if (userBookingsMin && (u.bookings ?? 0) < parseInt(userBookingsMin)) return false
+    if (userBookingsMax && (u.bookings ?? 0) > parseInt(userBookingsMax)) return false
+    if (userSpentMin && (u.totalSpent ?? 0) < parseFloat(userSpentMin)) return false
+    if (userSpentMax && (u.totalSpent ?? 0) > parseFloat(userSpentMax)) return false
+    return true
+  })
+
+  const filteredRooms = rooms.filter((r) => {
+    if (!roomSearch) return true
+    const q = roomSearch.toLowerCase()
+    return r.name.toLowerCase().includes(q) || r.type.toLowerCase().includes(q)
   })
 
   const tabs = [
     { id: 'overview', label: 'Overview', badge: null },
-    { id: 'bookings', label: 'Bookings', badge: mockBookings.length },
+    { id: 'bookings', label: 'Bookings', badge: bookings.length },
     { id: 'rooms', label: 'Rooms', badge: null },
     { id: 'users', label: 'Users', badge: 5 },
   ]
@@ -514,10 +1150,10 @@ export default function AdminPage() {
               <ExternalLink className="w-4 h-4" />
               View Site
             </Link>
-            <Link href="/booking" className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-[18px] py-[11px] rounded-[10px] text-[14px] font-semibold text-white no-underline cursor-pointer btn-primary-gradient glow-violet transition-all duration-200">
+            <button onClick={() => setShowAddReservation(true)} className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-[18px] py-[11px] rounded-[10px] text-[14px] font-semibold text-white no-underline cursor-pointer btn-primary-gradient glow-violet transition-all duration-200 border-none">
               <Plus className="w-4 h-4" />
               Add Reservation
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -548,8 +1184,8 @@ export default function AdminPage() {
               {[
                 { icon: '$', bg: 'rgba(124,108,242,0.15)', color: '#7c6cf2', value: `$${totalRevenue}`, label: 'Total Revenue', sub: 'This month' },
                 { icon: '▦', bg: 'rgba(47,209,143,0.15)', color: '#2fd18f', value: activeBookings.length.toString(), label: 'Active Bookings', sub: `${pendingCount} pending` },
-                { icon: '◈', bg: 'rgba(242,161,60,0.15)', color: '#f2a13c', value: `${availableDevices}/${totalDevices}`, label: 'Devices Available', sub: `${totalDevices} total` },
-                { icon: '☺', bg: 'rgba(124,108,242,0.15)', color: '#7c6cf2', value: '5', label: 'Registered Users', sub: '1 admin' },
+                 { icon: '◈', bg: 'rgba(242,161,60,0.15)', color: '#f2a13c', value: `${availableDevices}/${devices.length}`, label: 'Devices Available', sub: `${devices.length} total` },
+                { icon: '☺', bg: 'rgba(124,108,242,0.15)', color: '#7c6cf2', value: users.filter((u) => u.role === 'customer').length.toString(), label: 'Registered Users', sub: `${users.filter((u) => u.role === 'admin').length} admin` },
               ].map((s) => (
                 <div key={s.label} className="bg-[#12121a] border border-[#23232f] rounded-[14px] p-[22px] flex gap-4 items-start">
                   <div className="w-11 h-11 rounded-[10px] flex items-center justify-center text-[18px] shrink-0" style={{ background: s.bg, color: s.color }}>{s.icon}</div>
@@ -567,9 +1203,9 @@ export default function AdminPage() {
                 <div className="flex justify-between items-center mb-4">
                   <div className="text-[16px] font-bold text-[#f5f5f7]" style={{ fontFamily: 'var(--font-display)' }}>Room & Device Status</div>
                 </div>
-                {mockRooms.map((room) => {
-                  const stat = getRoomStat(room._id)
-                  const isAvail = stat.available > 0 && room.status === 'active'
+                {rooms.map((room) => {
+                  const stat = getRoomStat(room._id, devices)
+                  const statusColor = room.status === 'active' ? 'bg-[#2fd18f]/15 text-[#2fd18f]' : room.status === 'maintenance' ? 'bg-[#f2a13c]/15 text-[#f2a13c]' : 'bg-[#f25c78]/15 text-[#f25c78]'
                   return (
                     <div key={room._id} className="flex items-center py-3 border-b border-[#23232f] last:border-b-0 gap-2">
                       <img src={roomThumbs[room._id]} alt="" className="w-11 h-11 rounded-[10px] object-cover shrink-0" />
@@ -579,9 +1215,9 @@ export default function AdminPage() {
                       </div>
                       <div className="ml-auto flex items-center gap-2 sm:gap-3.5 shrink-0">
                         <span className="text-[13px] text-[#9a9aab] min-w-[38px] text-right">{stat.available}/{stat.total}</span>
-                        <span className={`text-[12px] px-2.5 py-1 rounded-full font-semibold inline-flex items-center gap-1.5 ${isAvail ? 'bg-[#2fd18f]/15 text-[#2fd18f]' : 'bg-[#f25c78]/15 text-[#f25c78]'}`}>
+                        <span className={`text-[12px] px-2.5 py-1 rounded-full font-semibold inline-flex items-center gap-1.5 ${statusColor}`}>
                           <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                          {isAvail ? 'Available' : 'Reserved'}
+                          {room.status.charAt(0).toUpperCase() + room.status.slice(1)}
                         </span>
                         <button onClick={() => setActiveTab('rooms')} className="text-[13px] text-[#7c6cf2] cursor-pointer hover:underline bg-transparent border-none">Manage</button>
                       </div>
@@ -595,7 +1231,7 @@ export default function AdminPage() {
                   <div className="text-[16px] font-bold text-[#f5f5f7]" style={{ fontFamily: 'var(--font-display)' }}>Recent Bookings</div>
                   <button onClick={() => setActiveTab('bookings')} className="text-[13px] text-[#7c6cf2] no-underline hover:underline bg-transparent border-none cursor-pointer">View all</button>
                 </div>
-                {mockBookings.slice(0, 5).map((b) => (
+                {bookings.slice(0, 5).map((b) => (
                   <div key={b._id} className="flex items-center py-3 border-b border-[#23232f] last:border-b-0">
                     <img src={roomThumbs[b.roomId] || '/images/room-pc.png'} alt="" className="w-11 h-11 rounded-[10px] object-cover mr-3.5 shrink-0" />
                     <div>
@@ -634,131 +1270,16 @@ export default function AdminPage() {
             <div className="flex items-center justify-between p-5 border-b border-[#23232f]">
               <h2 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>All Bookings</h2>
               <button
-                  onClick={handleDownloadBookingsReport}
+                  onClick={() => handleDownloadBookingsReport(bookings, rooms)}
                   className="inline-flex items-center gap-2 px-[16px] py-[9px] rounded-[10px] text-[13px] font-semibold text-[#f5f5f7] border border-[#23232f] bg-[#0a0a0f] hover:bg-[#1a1a26] transition-all"
                >
                  <Download className="w-4 h-4" />
                     Download Report
               </button>
-              <Link href="/booking" className="inline-flex items-center gap-2 px-[16px] py-[9px] rounded-[10px] text-[13px] font-semibold text-white no-underline cursor-pointer btn-primary-gradient glow-violet transition-all duration-200">
-                <Plus className="w-4 h-4" />
-                Add Reservation
-              </Link>
-            </div>
-
-            <div className="px-5 py-4 border-b border-[#23232f]">
-              <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
-                <div className="relative flex-1 min-w-[160px] max-w-[200px]">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b6b7b]" />
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Booking code..."
-                    className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] pl-9 pr-4 py-2 text-[14px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-colors"
-                  />
-                </div>
-                <div className="relative min-w-[150px]">
-                  <button
-                    type="button"
-                    onClick={() => setCustomerOpen(!customerOpen)}
-                    className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-3 py-2 text-[14px] text-[#f5f5f7] text-left cursor-pointer flex items-center justify-between gap-1"
-                  >
-                    <span>{customerFilters.length ? `${customerFilters.length} selected` : 'All Customers'}</span>
-                    <span className="text-[#6b6b7b] text-[10px]">▼</span>
-                  </button>
-                  {customerOpen && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setCustomerOpen(false)} />
-                      <div className="absolute top-full left-0 mt-1 z-50 bg-[#12121a] border border-[#23232f] rounded-[8px] p-2 min-w-[180px] max-h-[200px] overflow-y-auto shadow-xl">
-                        {customerNames.length === 0 ? (
-                          <div className="text-[#6b6b7b] text-[13px] px-2 py-1">No customers</div>
-                        ) : (
-                          customerNames.map((name) => {
-                            const checked = customerFilters.includes(name)
-                            return (
-                              <label key={name} className="flex items-center gap-2 px-2 py-1.5 rounded-[6px] text-[14px] text-[#f5f5f7] hover:bg-[#23232f] cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={() => {
-                                    setCustomerFilters((prev) =>
-                                      checked ? prev.filter((n) => n !== name) : [...prev, name]
-                                    )
-                                  }}
-                                  className="accent-[#7c6cf2]"
-                                />
-                                {name}
-                              </label>
-                            )
-                          })
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-                <select
-                  value={roomFilter}
-                  onChange={(e) => setRoomFilter(e.target.value)}
-                  className="bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-3 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer min-w-[130px]"
-                >
-                  <option value="">All Rooms</option>
-                  {rooms.map((r) => <option key={r._id} value={r.name}>{r.name}</option>)}
-                </select>
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className="bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-3 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors min-w-[140px]"
-                  title="From date"
-                />
-                <span className="text-[#6b6b7b]">-</span>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className="bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-3 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors min-w-[140px]"
-                  title="To date"
-                />
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    value={amountMin}
-                    onChange={(e) => setAmountMin(e.target.value)}
-                    placeholder="Min $"
-                    className="w-20 bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-3 py-2 text-[14px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-colors"
-                  />
-                  <span className="text-[#6b6b7b]">-</span>
-                  <input
-                    type="number"
-                    value={amountMax}
-                    onChange={(e) => setAmountMax(e.target.value)}
-                    placeholder="Max $"
-                    className="w-20 bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-3 py-2 text-[14px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-colors"
-                  />
-                </div>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-3 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer min-w-[130px]"
-                >
-                  <option value="">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-                <select
-                  value={paymentFilter}
-                  onChange={(e) => setPaymentFilter(e.target.value)}
-                  className="bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-3 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer min-w-[130px]"
-                >
-                  <option value="">All Payment</option>
-                  <option value="paid">Paid</option>
-                  <option value="unpaid">Unpaid</option>
-                  <option value="refunded">Refunded</option>
-                </select>
-              </div>
+                <button onClick={() => setShowAddReservation(true)} className="inline-flex items-center gap-2 px-[16px] py-[9px] rounded-[10px] text-[13px] font-semibold text-white no-underline cursor-pointer btn-primary-gradient glow-violet transition-all duration-200 border-none">
+                  <Plus className="w-4 h-4" />
+                  Add Reservation
+                </button>
             </div>
 
             {/* Desktop table */}
@@ -769,6 +1290,7 @@ export default function AdminPage() {
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Booking ID</th>
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Room</th>
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Customer</th>
+                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Phone</th>
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Devices</th>
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Date & Time</th>
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Duration</th>
@@ -777,14 +1299,63 @@ export default function AdminPage() {
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Payment</th>
                     <th className="text-right px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Actions</th>
                   </tr>
+                  <tr className="border-b border-[#23232f] bg-[#0e0e16]/60">
+                    <th className="px-3 py-2.5">
+                      <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ID or code..." className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
+                    </th>
+                    <th className="px-3 py-2.5">
+                      <select value={roomFilter} onChange={(e) => setRoomFilter(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all appearance-none cursor-pointer">
+                        <option value="">All rooms</option>
+                        {rooms.map((r) => <option key={r._id} value={r.name}>{r.name}</option>)}
+                      </select>
+                    </th>
+                    <th className="px-3 py-2.5">
+                      <input type="text" value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} placeholder="Customer..." className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
+                    </th>
+                    <th className="px-3 py-2.5"></th>
+                    <th className="px-3 py-2.5"></th>
+                    <th className="px-3 py-2.5">
+                      <div className="flex gap-1.5 items-center">
+                        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" title="From" />
+                        <span className="text-[#6b6b7b] text-[11px] shrink-0">–</span>
+                        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" title="To" />
+                      </div>
+                    </th>
+                    <th className="px-3 py-2.5"></th>
+                    <th className="px-3 py-2.5">
+                      <div className="flex gap-1.5 items-center">
+                        <input type="text" inputMode="numeric" value={amountMin} onChange={(e) => setAmountMin(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Min" className="w-full min-w-0 bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
+                        <span className="text-[#6b6b7b] text-[11px] shrink-0">–</span>
+                        <input type="text" inputMode="numeric" value={amountMax} onChange={(e) => setAmountMax(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Max" className="w-full min-w-0 bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
+                      </div>
+                    </th>
+                    <th className="px-3 py-2.5">
+                      <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all appearance-none cursor-pointer">
+                        <option value="">All status</option>
+                        <option value="pending">Pending</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </th>
+                    <th className="px-3 py-2.5">
+                      <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all appearance-none cursor-pointer">
+                        <option value="">All payment</option>
+                        <option value="paid">Paid</option>
+                        <option value="unpaid">Unpaid</option>
+                        <option value="refunded">Refunded</option>
+                      </select>
+                    </th>
+                    <th className="px-3 py-2.5"></th>
+                  </tr>
                 </thead>
                 <tbody>
                   {filteredBookings.map((b, i) => {
-                    const room = mockRooms.find((r) => r._id === b.roomId)
+                    const room = rooms.find((r) => r._id === b.roomId)
                     return (
                       <tr key={b._id} className="border-b border-[#23232f] last:border-b-0 hover:bg-[#0a0a0f]/50 transition-colors">
                         <td className="px-5 py-4">
-                          <span className="text-[13px] font-mono font-semibold text-[#f5f5f7]">{bookingIds[i]}</span>
+                          <span className="text-[13px] font-mono font-semibold text-[#f5f5f7]">{getDisplayId(b._id)}</span>
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
@@ -798,6 +1369,9 @@ export default function AdminPage() {
                         <td className="px-5 py-4">
                           <div className="text-[14px] text-[#f5f5f7]">{(b as any).user?.name || 'Unknown'}</div>
                           {(b as any).user?.email && <div className="text-[12px] text-[#6b6b7b]">{(b as any).user?.email}</div>}
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className="text-[14px] text-[#f5f5f7] font-mono">{(b as any).user?.phone || '—'}</span>
                         </td>
                         <td className="px-5 py-4">
                           <span className="text-[14px] text-[#f5f5f7] font-medium">{b.deviceCount}</span>
@@ -830,17 +1404,8 @@ export default function AdminPage() {
     >
       {b.paymentStatus.charAt(0).toUpperCase() + b.paymentStatus.slice(1)}
     </span>
-
-    {b.paymentStatus === 'paid' && b.paymentMethod === 'cash' && (
-      <span className="px-2 py-0.5 rounded-full text-[11px] bg-yellow-100 text-yellow-800">
-        Cash
-      </span>
-    )}
-
-    {b.paymentStatus === 'paid' && b.paymentMethod === 'card' && (
-      <span className="px-2 py-0.5 rounded-full text-[11px] bg-blue-100 text-blue-800">
-        Card
-      </span>
+    {b.paymentMethod === 'cash' && (
+      <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-[#f2a13c]/15 text-[#f2a13c]">Cash</span>
     )}
   </div>
 </td>
@@ -859,14 +1424,28 @@ export default function AdminPage() {
                                 Approve Cash
                               </button>
                             )}
+                            {b.paymentStatus === 'paid' && b.paymentMethod === 'card' && (
+                              <button
+                                onClick={() => {
+                                  setConfirmModal({
+                                    message: `Refund booking ${getDisplayId(b._id)}? This will cancel the booking and refund the card payment.`,
+                                    onConfirm: () => handleRefund(b._id),
+                                  })
+                                }}
+                                className="px-2 py-1 rounded-[6px] text-[11px] font-semibold text-[#f25c78] bg-[#f25c78]/10 hover:bg-[#f25c78]/20 transition-all cursor-pointer border-none"
+                              >
+                                Refund
+                              </button>
+                            )}
                             <button
                               onClick={() => setDetailModal({
                                 open: true,
-                                title: `Booking Code ${bookingIds[i]}`,
+                                title: `Booking Code ${getDisplayId(b._id)}`,
                                 details: [
                                   { label: 'Room', value: room?.name || 'N/A' },
                                   { label: 'Customer', value: (b as any).user?.name || 'Unknown' },
                                   { label: 'Email', value: (b as any).user?.email || '—' },
+                                  { label: 'Phone', value: (b as any).user?.phone || '—' },
                                   { label: 'Devices', value: `${b.deviceCount}` },
                                   { label: 'Date', value: formatDate(b.bookingDate) },
                                   { label: 'Time', value: b.startTime },
@@ -883,7 +1462,7 @@ export default function AdminPage() {
                                   },
                                   {
                                     label: 'Payment',
-                                    value: b.paymentStatus.charAt(0).toUpperCase() + b.paymentStatus.slice(1),
+                                    value: b.paymentStatus.charAt(0).toUpperCase() + b.paymentStatus.slice(1) + (b.paymentMethod === 'cash' ? ' (Cash)' : ''),
                                     color:
                                       b.paymentStatus === 'paid' ? '#2fd18f' :
                                       b.paymentStatus === 'refunded' ? '#f25c78' :
@@ -910,15 +1489,51 @@ export default function AdminPage() {
               </table>
             </div>
 
+            {/* Mobile filters */}
+            <div className="block md:hidden px-4 py-3 border-b border-[#23232f] space-y-2.5">
+              <div className="grid grid-cols-2 gap-2">
+                <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ID or code..." className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-3 py-2 text-[13px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-colors" />
+                <input type="text" value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} placeholder="Customer..." className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-3 py-2 text-[13px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-colors" />
+              </div>
+              <div className="overflow-x-auto scrollbar-none -mx-4 px-4">
+                <div className="flex gap-2 min-w-max">
+                  <select value={roomFilter} onChange={(e) => setRoomFilter(e.target.value)} className="bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-3 py-2 text-[13px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer">
+                    <option value="">All rooms</option>
+                    {rooms.map((r) => <option key={r._id} value={r.name}>{r.name}</option>)}
+                  </select>
+                  <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-3 py-2 text-[13px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer">
+                    <option value="">Status</option>
+                    {['confirmed','pending','cancelled','completed'].map((s) => <option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+
+                  </select>
+                  <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} className="bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-3 py-2 text-[13px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer">
+                    <option value="">Payment</option>
+                    <option value="paid">Paid</option>
+                    <option value="unpaid">Unpaid</option>
+                    <option value="refunded">Refunded</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="flex-1 bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-3 py-2 text-[13px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors [color-scheme:dark]" />
+                <span className="text-[#6b6b7b] text-[13px] self-center">to</span>
+                <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="flex-1 bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-3 py-2 text-[13px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors [color-scheme:dark]" />
+              </div>
+              <div className="flex gap-2">
+                <input type="text" inputMode="numeric" value={amountMin} onChange={(e) => setAmountMin(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Min amount..." className="flex-1 bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-3 py-2 text-[13px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-colors" />
+                <input type="text" inputMode="numeric" value={amountMax} onChange={(e) => setAmountMax(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Max amount..." className="flex-1 bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-3 py-2 text-[13px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-colors" />
+              </div>
+            </div>
+
             {/* Mobile cards */}
             <div className="block md:hidden divide-y divide-[#23232f]">
               {filteredBookings.map((b, i) => {
-                const room = mockRooms.find((r) => r._id === b.roomId)
+                const room = rooms.find((r) => r._id === b.roomId)
                 const payColor = b.paymentStatus === 'paid' ? '#2fd18f' : b.paymentStatus === 'refunded' ? '#f25c78' : '#6c8cf5'
                 return (
                   <div key={b._id} className="px-4 py-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-[13px] font-mono font-semibold text-[#f5f5f7]">{bookingIds[i]}</span>
+                      <span className="text-[13px] font-mono font-semibold text-[#f5f5f7]">{getDisplayId(b._id)}</span>
                       <div className="flex items-center gap-1">
                         {b.paymentStatus === 'unpaid' && b.status === 'pending' && (
                           <button
@@ -933,21 +1548,35 @@ export default function AdminPage() {
                             Approve Cash
                           </button>
                         )}
+                        {b.paymentStatus === 'paid' && b.paymentMethod === 'card' && (
+                          <button
+                            onClick={() => {
+                              setConfirmModal({
+                                message: `Refund booking ${getDisplayId(b._id)}? This will cancel the booking and refund the card payment.`,
+                                onConfirm: () => handleRefund(b._id),
+                              })
+                            }}
+                            className="px-2 py-1 rounded-[6px] text-[11px] font-semibold text-[#f25c78] bg-[#f25c78]/10 hover:bg-[#f25c78]/20 transition-all cursor-pointer border-none"
+                          >
+                            Refund
+                          </button>
+                        )}
                         <button
                           onClick={() => setDetailModal({
                             open: true,
-                            title: `Booking Code ${bookingIds[i]}`,
+                            title: `Booking Code ${getDisplayId(b._id)}`,
                             details: [
                               { label: 'Room', value: room?.name || 'N/A' },
                               { label: 'Customer', value: (b as any).user?.name || 'Unknown' },
                               { label: 'Email', value: (b as any).user?.email || '—' },
+                              { label: 'Phone', value: (b as any).user?.phone || '—' },
                               { label: 'Devices', value: `${b.deviceCount}` },
                               { label: 'Date', value: formatDate(b.bookingDate) },
                               { label: 'Time', value: b.startTime },
                               { label: 'Duration', value: `${b.durationHours}h` },
                               { label: 'Amount', value: `$${b.totalPrice}` },
                               { label: 'Status', value: b.status.charAt(0).toUpperCase() + b.status.slice(1), color: b.status === 'confirmed' ? '#2fd18f' : b.status === 'pending' ? '#6c8cf5' : b.status === 'cancelled' ? '#f25c78' : '#9a9aab' },
-                              { label: 'Payment', value: b.paymentStatus.charAt(0).toUpperCase() + b.paymentStatus.slice(1), color: payColor },
+                              { label: 'Payment', value: b.paymentStatus.charAt(0).toUpperCase() + b.paymentStatus.slice(1) + (b.paymentMethod === 'cash' ? ' (Cash)' : ''), color: payColor },
                             ],
                           })}
                           className="p-1.5 rounded-[6px] text-[#9a9aab] hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent"
@@ -955,7 +1584,7 @@ export default function AdminPage() {
                           <Eye className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => setConfirmModal({ message: `Are you sure you want to delete booking ${bookingIds[i]}? This action cannot be undone.`, onConfirm: () => { setDeletedBookingIds((prev) => [...prev, b._id]); setConfirmModal(null) } })}
+                          onClick={() => setConfirmModal({ message: `Are you sure you want to delete booking ${getDisplayId(b._id)}? This action cannot be undone.`, onConfirm: () => { setDeletedBookingIds((prev) => [...prev, b._id]); setConfirmModal(null) } })}
                           className="p-1.5 rounded-[6px] text-[#f25c78]/60 hover:text-[#f25c78] hover:bg-[#f25c78]/10 transition-all cursor-pointer border-none bg-transparent"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -970,6 +1599,13 @@ export default function AdminPage() {
                       </div>
                     </div>
                     <div className="text-[13px] text-[#f5f5f7]">{(b as any).user?.name || 'Unknown'}</div>
+                    {(b as any).user?.phone || (b as any).user?.email ? (
+                      <div className="flex items-center gap-2 text-[12px] text-[#6b6b7b]">
+                        {(b as any).user?.phone && <span className="font-mono">{(b as any).user?.phone}</span>}
+                        {(b as any).user?.phone && (b as any).user?.email && <span className="text-[#23232f]">|</span>}
+                        {(b as any).user?.email && <span>{(b as any).user?.email}</span>}
+                      </div>
+                    ) : null}
                     <div className="flex items-center justify-between text-[13px]">
                       <span className="text-[#6b6b7b]">{formatDate(b.bookingDate)} · {b.startTime} · {b.durationHours}h</span>
                       <span className="font-bold text-[#f5f5f7]">${b.totalPrice}</span>
@@ -985,6 +1621,9 @@ export default function AdminPage() {
                       }`}>
                         {b.paymentStatus.charAt(0).toUpperCase() + b.paymentStatus.slice(1)}
                       </span>
+                      {b.paymentMethod === 'cash' && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-[#f2a13c]/15 text-[#f2a13c]">Cash</span>
+                      )}
                       <span className="text-[#6b6b7b] text-[12px]">{b.deviceCount} device{b.deviceCount > 1 ? 's' : ''}</span>
                     </div>
                   </div>
@@ -1010,7 +1649,7 @@ export default function AdminPage() {
                     className="w-full sm:w-52 bg-[#0a0a0f] border border-[#23232f] rounded-[8px] pl-9 pr-4 py-[7px] text-[14px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-colors"
                   />
                 </div>
-                <button className="hidden sm:inline-flex items-center gap-2 px-[16px] py-[9px] rounded-[10px] text-[13px] font-semibold text-white border-none cursor-pointer btn-primary-gradient glow-violet transition-all duration-200">
+                <button onClick={() => setShowAddRoom(true)} className="hidden sm:inline-flex items-center gap-2 px-[16px] py-[9px] rounded-[10px] text-[13px] font-semibold text-white border-none cursor-pointer btn-primary-gradient glow-violet transition-all duration-200">
                   <Plus className="w-4 h-4" />
                   Add Room
                 </button>
@@ -1025,9 +1664,9 @@ export default function AdminPage() {
                   <div key={room._id} className="bg-[#0a0a0f] border border-[#23232f] rounded-[14px] overflow-hidden">
                     <div className="relative">
                       <img src={room.images?.[0] || '/images/room-pc.png'} alt="" className="w-full h-32 object-cover" />
-                      <span className={`absolute top-3 left-3 text-[11px] px-2.5 py-1 rounded-full font-semibold inline-flex items-center gap-1.5 ${isAvail ? 'bg-[#2fd18f]/80 text-white' : 'bg-[#f25c78]/80 text-white'}`}>
+                      <span className={`absolute top-3 left-3 text-[11px] px-2.5 py-1 rounded-full font-semibold inline-flex items-center gap-1.5 ${room.status === 'active' ? 'bg-[#2fd18f]/80 text-white' : room.status === 'maintenance' ? 'bg-[#f2a13c]/80 text-white' : 'bg-[#f25c78]/80 text-white'}`}>
                         <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                        {isAvail ? 'Available' : 'Reserved'}
+                        {room.status.charAt(0).toUpperCase() + room.status.slice(1)}
                       </span>
                       <span className="absolute top-3 right-3 text-[11px] px-2.5 py-1 rounded-full font-semibold bg-black/60 text-[#f5f5f7]">
                         {stat.available}/{stat.total}
@@ -1074,6 +1713,10 @@ export default function AdminPage() {
           <div className="bg-[#12121a] border border-[#23232f] rounded-[14px] overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#23232f]">
               <h2 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>Device Management</h2>
+              <button onClick={() => setShowAddDevice(true)} className="flex items-center gap-2 px-[16px] py-[9px] rounded-[10px] text-[13px] font-semibold text-white border-none cursor-pointer btn-primary-gradient glow-violet transition-all duration-200">
+                <Plus className="w-4 h-4" />
+                Add Device
+              </button>
             </div>
 
             {/* Desktop table */}
@@ -1086,6 +1729,7 @@ export default function AdminPage() {
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Specs</th>
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Status</th>
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Added</th>
+                    <th className="text-right px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1118,6 +1762,16 @@ export default function AdminPage() {
                         </td>
                         <td className="px-5 py-4">
                           <div className="text-[13px] text-[#6b6b7b]">{new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button onClick={() => setEditingDevice(d)} className="p-1.5 rounded-[8px] text-[#6b6b7b] hover:text-[#7c6cf2] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent">
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => setConfirmModal({ message: `Are you sure you want to delete device "${d.deviceLabel}"? This action cannot be undone.`, onConfirm: () => handleDeleteDevice(d._id) })} className="p-1.5 rounded-[8px] text-[#6b6b7b] hover:text-[#f25c78] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -1175,18 +1829,6 @@ export default function AdminPage() {
           <div className="bg-[#12121a] border border-[#23232f] rounded-[14px] overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#23232f]">
               <h2 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>User Management</h2>
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b6b7b]" />
-                  <input
-                    type="text"
-                    value={userSearch}
-                    onChange={(e) => setUserSearch(e.target.value)}
-                    placeholder="Search users..."
-                    className="w-full sm:w-52 bg-[#0a0a0f] border border-[#23232f] rounded-[8px] pl-9 pr-4 py-[7px] text-[14px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-colors"
-                  />
-                </div>
-              </div>
             </div>
 
             {/* Desktop table */}
@@ -1195,12 +1837,52 @@ export default function AdminPage() {
                 <thead>
                   <tr className="border-b border-[#23232f]">
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">User</th>
+                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Phone</th>
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Role</th>
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Bookings</th>
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Total Spent</th>
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Status</th>
                     <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Joined</th>
                     <th className="text-right px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Actions</th>
+                  </tr>
+                  <tr className="border-b border-[#23232f] bg-[#0e0e16]/60">
+                    <th className="px-3 py-2.5">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6b6b7b]" />
+                        <input type="text" value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Name or email..." className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] pl-8 pr-2.5 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
+                      </div>
+                    </th>
+                    <th className="px-3 py-2.5"></th>
+                    <th className="px-3 py-2.5">
+                      <select value={roleFilter || ''} onChange={(e) => setRoleFilter(e.target.value || '')} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all appearance-none cursor-pointer">
+                        <option value="">All</option>
+                        <option value="admin">Admin</option>
+                        <option value="customer">Customer</option>
+                      </select>
+                    </th>
+                    <th className="px-3 py-2.5">
+                      <div className="flex gap-1 items-center">
+                        <input type="text" inputMode="numeric" value={userBookingsMin} onChange={(e) => setUserBookingsMin(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Min" className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
+                        <span className="text-[#6b6b7b] text-[11px] shrink-0">–</span>
+                        <input type="text" inputMode="numeric" value={userBookingsMax} onChange={(e) => setUserBookingsMax(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Max" className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
+                      </div>
+                    </th>
+                    <th className="px-3 py-2.5">
+                      <div className="flex gap-1 items-center">
+                        <input type="text" inputMode="numeric" value={userSpentMin} onChange={(e) => setUserSpentMin(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Min" className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
+                        <span className="text-[#6b6b7b] text-[11px] shrink-0">–</span>
+                        <input type="text" inputMode="numeric" value={userSpentMax} onChange={(e) => setUserSpentMax(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Max" className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
+                      </div>
+                    </th>
+                    <th className="px-3 py-2.5">
+                      <select value={verifiedFilter || ''} onChange={(e) => setVerifiedFilter(e.target.value || '')} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all appearance-none cursor-pointer">
+                        <option value="">All</option>
+                        <option value="verified">Verified</option>
+                        <option value="unverified">Unverified</option>
+                      </select>
+                    </th>
+                    <th className="px-3 py-2.5"></th>
+                    <th className="px-3 py-2.5"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1218,6 +1900,9 @@ export default function AdminPage() {
                                 <div className="text-[12px] text-[#6b6b7b]">{u.email}</div>
                               </div>
                             </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="text-[14px] text-[#f5f5f7] font-mono">{u.phone || '—'}</span>
                           </td>
                           <td className="px-5 py-4">
                             <span className={`text-[12px] px-2.5 py-1 rounded-full font-semibold ${
@@ -1289,6 +1974,26 @@ export default function AdminPage() {
               </table>
             </div>
 
+            {/* Mobile filters */}
+            <div className="block md:hidden px-4 py-3 border-b border-[#23232f] space-y-2.5">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b6b7b]" />
+                <input type="text" value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Name or email..." className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] pl-9 pr-3 py-2 text-[13px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-colors" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <select value={roleFilter || ''} onChange={(e) => setRoleFilter(e.target.value || '')} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-3 py-2 text-[13px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer">
+                  <option value="">All roles</option>
+                  <option value="admin">Admin</option>
+                  <option value="customer">Customer</option>
+                </select>
+                <select value={verifiedFilter || ''} onChange={(e) => setVerifiedFilter(e.target.value || '')} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-3 py-2 text-[13px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer">
+                  <option value="">All status</option>
+                  <option value="verified">Verified</option>
+                  <option value="unverified">Unverified</option>
+                </select>
+              </div>
+            </div>
+
             {/* Mobile cards */}
             <div className="block md:hidden divide-y divide-[#23232f]">
               {filteredUsers.map((u) => {
@@ -1303,6 +2008,7 @@ export default function AdminPage() {
                         <div>
                           <div className="text-[14px] font-medium text-[#f5f5f7]">{u.name}</div>
                           <div className="text-[12px] text-[#6b6b7b]">{u.email}</div>
+                          {u.phone && <div className="text-[12px] text-[#6b6b7b] font-mono">{u.phone}</div>}
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
@@ -1359,58 +2065,15 @@ export default function AdminPage() {
         )}
       </div>
       {showAddRoom && <AddRoomModal onSave={handleAddRoom} onClose={() => setShowAddRoom(false)} />}
-      {confirmModal && <ConfirmModal message={confirmModal.message} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(null)} />}
+      {showAddReservation && <AddReservationModal rooms={rooms} devices={devices} users={users} onSave={handleAddReservation} onSuccess={() => { setFeedback({ type: 'success', message: 'Reservation created and payment successful' }); setShowAddReservation(false); fetchData() }} onClose={() => setShowAddReservation(false)} />}
+      {confirmModal && <ConfirmModal title="Confirm" message={confirmModal.message} confirmText="Confirm" onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(null)} />}
       {editingRoom && <RoomEditModal room={editingRoom} onSave={handleEditRoom} onClose={() => setEditingRoom(null)} />}
       <DetailModal open={detailModal.open} onClose={() => setDetailModal({ open: false, title: '', details: [] })} title={detailModal.title} details={detailModal.details} />
     </div>
   )
 }
 
-// function handleDownloadBookingsReport() {
-//   const doc = new jsPDF()
-
-//   // Header
-//   doc.setFont('helvetica', 'bold')
-//   doc.setFontSize(18)
-//   doc.setTextColor(124, 92, 255)
-//   doc.text('GameZone Arena', 14, 18)
-
-//   doc.setFontSize(12)
-//   doc.setTextColor(80, 80, 80)
-//   doc.text('Bookings Report', 14, 25)
-
-//   doc.setFontSize(9)
-//   doc.setTextColor(140, 140, 140)
-//   doc.text(`Generated: ${new Date().toLocaleString('en-US')}`, 14, 31)
-//   doc.text(`Total records: ${mockBookings.length}`, 14, 36)
-
-//   // Table
-//   autoTable(doc, {
-//     startY: 42,
-//     head: [['Booking ID', 'Room', 'Devices', 'Date', 'Time', 'Duration', 'Amount', 'Status', 'Payment']],
-//     body: mockBookings.map((b) => {
-//       const room = mockRooms.find((r) => r._id === b.roomId)
-//       const originalIndex = mockBookings.indexOf(b)
-//       return [
-//         bookingIds[originalIndex],
-//         room?.name || 'Room',
-//         String(b.deviceCount),
-//         formatDate(b.bookingDate),
-//         b.startTime,
-//         `${b.durationHours}h`,
-//         `$${b.totalPrice}`,
-//         b.status.charAt(0).toUpperCase() + b.status.slice(1),
-//         b.paymentStatus.charAt(0).toUpperCase() + b.paymentStatus.slice(1),
-//       ]
-//     }),
-//     styles: { fontSize: 9, cellPadding: 4 },
-//     headStyles: { fillColor: [124, 92, 255], textColor: [255, 255, 255], fontStyle: 'bold' },
-//     alternateRowStyles: { fillColor: [245, 245, 250] },
-//   })
-
-//   doc.save(`gamezone-bookings-report-${Date.now()}.pdf`)
-// }
-function handleDownloadBookingsReport() {
+function handleDownloadBookingsReport(bookings: Booking[], rooms: Room[]) {
   const doc = new jsPDF()
   const pageWidth = 210
 
@@ -1441,12 +2104,12 @@ function handleDownloadBookingsReport() {
   )
 
   // ---- Summary stat cards ----
-  const totalCount = mockBookings.length
-  const revenue = mockBookings
+  const totalCount = bookings.length
+  const revenue = bookings
     .filter((b) => b.status === 'completed' || b.paymentStatus === 'paid')
     .reduce((s, b) => s + b.totalPrice, 0)
-  const pendingCountReport = mockBookings.filter((b) => b.status === 'pending').length
-  const completedCountReport = mockBookings.filter((b) => b.status === 'completed').length
+  const pendingCountReport = bookings.filter((b) => b.status === 'pending').length
+  const completedCountReport = bookings.filter((b) => b.status === 'completed').length
 
   const stats: [string, string][] = [
     ['Total Bookings', String(totalCount)],
@@ -1480,11 +2143,10 @@ function handleDownloadBookingsReport() {
   autoTable(doc, {
     startY: 64,
     head: [['Booking ID', 'Room', 'Devices', 'Date', 'Time', 'Duration', 'Amount', 'Status', 'Payment']],
-    body: mockBookings.map((b) => {
-      const room = mockRooms.find((r) => r._id === b.roomId)
-      const originalIndex = mockBookings.indexOf(b)
+    body: bookings.map((b) => {
+      const room = rooms.find((r) => r._id === b.roomId)
       return [
-        bookingIds[originalIndex],
+        getDisplayId(b._id),
         room?.name || 'Room',
         String(b.deviceCount),
         formatDate(b.bookingDate),

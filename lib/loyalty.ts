@@ -1,6 +1,9 @@
 import type { Booking } from './types'
 import { isNoShow } from './booking-policy'
 
+export const EARN_PER_COMPLETED = 10
+export const NO_SHOW_PENALTY = 100
+
 export const EARN_PER_HOUR = 10
 export const CARD_NO_SHOW_PENALTY = 5
 export const CASH_NO_SHOW_PENALTY = 50
