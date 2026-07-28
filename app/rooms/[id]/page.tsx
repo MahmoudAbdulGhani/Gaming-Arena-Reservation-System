@@ -52,7 +52,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const room = await db.collection('rooms').findOne({ _id: new ObjectId(id) })
   if (!room) return { title: 'Room Not Found' }
   return {
-    title: `${room.name} — GameZone Arena`,
     description: room.description || `Book ${room.name} at GameZone Arena.`,
   }
 }
@@ -114,7 +113,7 @@ export default async function RoomDetailPage({ params }: Props) {
             className="inline-flex items-center gap-1.5 text-sm text-[#9BA3B7] hover:text-[#F5F6FA] transition-colors mb-6"
           >
             <ChevronLeft className="w-4 h-4" />
-            Back to Rooms
+            
           </Link>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">

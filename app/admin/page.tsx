@@ -824,6 +824,7 @@ export default function AdminPage() {
   const [dateTo, setDateTo] = useState('')
   const [amountMin, setAmountMin] = useState('')
   const [amountMax, setAmountMax] = useState('')
+  const [devicesFilter, setDevicesFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [paymentFilter, setPaymentFilter] = useState('')
   const [roomSearch, setRoomSearch] = useState('')
@@ -863,7 +864,7 @@ export default function AdminPage() {
     }
   }, [feedback])
 
-  useEffect(() => { setBookingPage(0) }, [search, customerSearch, roomFilter, dateFrom, statusFilter, paymentFilter])
+  useEffect(() => { setBookingPage(0) }, [search, customerSearch, roomFilter, dateFrom, dateTo, amountMin, amountMax, devicesFilter, statusFilter, paymentFilter])
   useEffect(() => { setUserPage(0) }, [userSearch, roleFilter, verifiedFilter, userBookingsMin, userBookingsMax, userSpentMin, userSpentMax])
 
   async function apiFetch(url: string, options?: RequestInit) {
@@ -987,6 +988,7 @@ export default function AdminPage() {
   }, [fetchData])
 
   const handleApproveCash = useCallback(async (id: string) => {
+    setConfirmModal(null)
     try {
       await apiFetch(`/api/admin/bookings/${id}/approve-cash`, { method: 'PATCH' })
       setFeedback({ type: 'success', message: 'Cash payment approved' })
@@ -997,14 +999,13 @@ export default function AdminPage() {
   }, [fetchData])
 
   const handleRefund = useCallback(async (id: string) => {
+    setConfirmModal(null)
     try {
       await apiFetch(`/api/admin/bookings/${id}/refund`, { method: 'PATCH' })
       setFeedback({ type: 'success', message: 'Booking refunded successfully' })
-      setConfirmModal(null)
       await fetchData()
     } catch (err) {
       setFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Failed to refund booking' })
-      setConfirmModal(null)
     }
   }, [fetchData])
 
@@ -1112,6 +1113,7 @@ export default function AdminPage() {
     if (dateTo && new Date(b.bookingDate) > new Date(dateTo + 'T23:59:59')) return false
     if (amountMin && b.totalPrice < parseFloat(amountMin)) return false
     if (amountMax && b.totalPrice > parseFloat(amountMax)) return false
+    if (devicesFilter && !String(b.deviceCount).includes(devicesFilter)) return false
     if (statusFilter && b.status !== statusFilter) return false
     if (paymentFilter && b.paymentStatus !== paymentFilter) return false
     return true
@@ -1280,13 +1282,6 @@ export default function AdminPage() {
           <div className="bg-[#12121a] border border-[#23232f] rounded-[14px] overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-[#23232f]">
               <h2 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>All Bookings</h2>
-              <button
-                  onClick={() => handleDownloadBookingsReport(bookings, rooms)}
-                  className="inline-flex items-center gap-2 px-[16px] py-[9px] rounded-[10px] text-[13px] font-semibold text-[#f5f5f7] border border-[#23232f] bg-[#0a0a0f] hover:bg-[#1a1a26] transition-all"
-               >
-                 <Download className="w-4 h-4" />
-                    Download Report
-              </button>
                 <button onClick={() => setShowAddReservation(true)} className="inline-flex items-center gap-2 px-[16px] py-[9px] rounded-[10px] text-[13px] font-semibold text-white no-underline cursor-pointer btn-primary-gradient glow-violet transition-all duration-200 border-none">
                   <Plus className="w-4 h-4" />
                   Add Reservation
@@ -1294,70 +1289,76 @@ export default function AdminPage() {
             </div>
 
             {/* Desktop table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full">
+            <div className="hidden md:block">
+              <table className="w-full" style={{ tableLayout: 'fixed' }}>
+                <colgroup>
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '10%' }} />
+                </colgroup>
                 <thead>
                   <tr className="border-b border-[#23232f]">
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Booking ID</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Room</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Customer</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Phone</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Devices</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Date & Time</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Duration</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Amount</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Status</th>
-                    <th className="text-left px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Payment</th>
-                    <th className="text-right px-5 py-4 text-[12px] font-semibold text-[#6b6b7b] uppercase tracking-wider">Actions</th>
-                  </tr>
-                  <tr className="border-b border-[#23232f] bg-[#0e0e16]/60">
-                    <th className="px-3 py-2.5">
-                      <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ID or code..." className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">ID</div>
+                      <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search..." className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-all" />
                     </th>
-                    <th className="px-3 py-2.5">
-                      <select value={roomFilter} onChange={(e) => setRoomFilter(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all appearance-none cursor-pointer">
-                        <option value="">All rooms</option>
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Room</div>
+                      <select value={roomFilter} onChange={(e) => setRoomFilter(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-all appearance-none cursor-pointer">
+                        <option value="">All</option>
                         {rooms.map((r) => <option key={r._id} value={r.name}>{r.name}</option>)}
                       </select>
                     </th>
-                    <th className="px-3 py-2.5">
-                      <input type="text" value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} placeholder="Customer..." className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Customer</div>
+                      <input type="text" value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} placeholder="Search..." className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1 text-[11px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-all" />
                     </th>
-                    <th className="px-3 py-2.5"></th>
-                    <th className="px-3 py-2.5"></th>
-                    <th className="px-3 py-2.5">
-                      <div className="flex gap-1.5 items-center">
-                        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" title="From" />
-                        <span className="text-[#6b6b7b] text-[11px] shrink-0">–</span>
-                        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" title="To" />
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Devices</div>
+                      <input type="text" inputMode="numeric" value={devicesFilter} onChange={(e) => setDevicesFilter(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Qty..." className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1 text-[11px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-all" />
+                    </th>
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Date</div>
+                      <div className="flex flex-col gap-1">
+                        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1 text-[11px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-all" title="From" />
+                        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1 text-[11px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-all" title="To" />
                       </div>
                     </th>
-                    <th className="px-3 py-2.5"></th>
-                    <th className="px-3 py-2.5">
-                      <div className="flex gap-1.5 items-center">
-                        <input type="text" inputMode="numeric" value={amountMin} onChange={(e) => setAmountMin(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Min" className="w-full min-w-0 bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
-                        <span className="text-[#6b6b7b] text-[11px] shrink-0">–</span>
-                        <input type="text" inputMode="numeric" value={amountMax} onChange={(e) => setAmountMax(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Max" className="w-full min-w-0 bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[12px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all" />
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Amount</div>
+                      <div className="flex gap-1">
+                        <input type="text" inputMode="numeric" value={amountMin} onChange={(e) => setAmountMin(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Min" className="w-1/2 min-w-0 bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[11px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-all" />
+                        <input type="text" inputMode="numeric" value={amountMax} onChange={(e) => setAmountMax(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Max" className="w-1/2 min-w-0 bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2 py-1.5 text-[11px] text-[#f5f5f7] placeholder:text-[#6b6b7b] focus:outline-none focus:border-[#7c6cf2] transition-all" />
                       </div>
                     </th>
-                    <th className="px-3 py-2.5">
-                      <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all appearance-none cursor-pointer">
-                        <option value="">All status</option>
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Status</div>
+                      <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-all appearance-none cursor-pointer">
+                        <option value="">All</option>
                         <option value="pending">Pending</option>
                         <option value="confirmed">Confirmed</option>
                         <option value="completed">Completed</option>
                         <option value="cancelled">Cancelled</option>
                       </select>
                     </th>
-                    <th className="px-3 py-2.5">
-                      <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] focus:ring-1 focus:ring-[#7c6cf2]/30 transition-all appearance-none cursor-pointer">
-                        <option value="">All payment</option>
+                    <th className="px-3 py-3 text-left">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Payment</div>
+                      <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-2.5 py-1.5 text-[12px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-all appearance-none cursor-pointer">
+                        <option value="">All</option>
                         <option value="paid">Paid</option>
                         <option value="unpaid">Unpaid</option>
                         <option value="refunded">Refunded</option>
                       </select>
                     </th>
-                    <th className="px-3 py-2.5"></th>
+                    <th className="px-3 py-3 text-center">
+                      <div className="text-[11px] font-semibold text-[#6b6b7b] uppercase tracking-wider mb-1.5">Actions</div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1365,62 +1366,55 @@ export default function AdminPage() {
                     const room = rooms.find((r) => r._id === b.roomId)
                     return (
                       <tr key={b._id} className="border-b border-[#23232f] last:border-b-0 hover:bg-[#0a0a0f]/50 transition-colors">
-                        <td className="px-5 py-4">
-                          <span className="text-[13px] font-mono font-semibold text-[#f5f5f7]">{getDisplayId(b._id)}</span>
+                        <td className="px-3 py-3">
+                          <span className="text-[12px] font-mono font-semibold text-[#f5f5f7]">{getDisplayId(b._id)}</span>
                         </td>
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-3">
-                            <img src={getRoomThumb(room)} alt="" className="w-9 h-9 rounded-[8px] object-cover shrink-0" />
-                            <div>
-                              <div className="text-[14px] font-medium text-[#f5f5f7]">{room?.name || 'Room'}</div>
-                              {room && <div className="text-[12px] text-[#6b6b7b]">{typeLabels[room.type]}</div>}
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-2">
+                            <img src={getRoomThumb(room)} alt="" className="w-8 h-8 rounded-[6px] object-cover shrink-0" />
+                            <div className="min-w-0">
+                              <div className="text-[13px] font-medium text-[#f5f5f7] truncate">{room?.name || 'Room'}</div>
+                              {room && <div className="text-[11px] text-[#6b6b7b]">{typeLabels[room.type]}</div>}
                             </div>
                           </div>
                         </td>
-                        <td className="px-5 py-4">
-                          <div className="text-[14px] text-[#f5f5f7]">{(b as any).user?.name || 'Unknown'}</div>
-                          {(b as any).user?.email && <div className="text-[12px] text-[#6b6b7b]">{(b as any).user?.email}</div>}
+                        <td className="px-3 py-3">
+                          <div className="text-[13px] text-[#f5f5f7] truncate">{(b as any).user?.name || 'Unknown'}</div>
+                          <div className="text-[11px] text-[#6b6b7b] truncate">{(b as any).user?.phone || (b as any).user?.email || '—'}</div>
                         </td>
-                        <td className="px-5 py-4">
-                          <span className="text-[14px] text-[#f5f5f7] font-mono">{(b as any).user?.phone || '—'}</span>
+                        <td className="px-3 py-3">
+                          <span className="text-[13px] text-[#f5f5f7] font-medium text-center block">{b.deviceCount}</span>
                         </td>
-                        <td className="px-5 py-4">
-                          <span className="text-[14px] text-[#f5f5f7] font-medium">{b.deviceCount}</span>
+                        <td className="px-3 py-3">
+                          <div className="text-[13px] text-[#f5f5f7]">{formatDate(b.bookingDate)}</div>
+                          <div className="text-[11px] text-[#6b6b7b]">{b.startTime} · {b.durationHours}h</div>
                         </td>
-                        <td className="px-5 py-4">
-                          <div className="text-[14px] text-[#f5f5f7]">{formatDate(b.bookingDate)}</div>
-                          <div className="text-[12px] text-[#6b6b7b]">{b.startTime}</div>
+                        <td className="px-3 py-3">
+                          <span className="text-[13px] font-bold text-[#f5f5f7] text-center block">${b.totalPrice}</span>
                         </td>
-                        <td className="px-5 py-4">
-                          <span className="text-[14px] text-[#f5f5f7]">{b.durationHours}h</span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className="text-[15px] font-bold text-[#f5f5f7]">${b.totalPrice}</span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className={`text-[12px] px-2.5 py-1 rounded-full font-semibold ${statusClass(b.status)}`}>
+                        <td className="px-3 py-3">
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${statusClass(b.status)}`}>
                             {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
                           </span>
                         </td>
-                       <td className="px-5 py-4">
-  <div className="flex items-center gap-2">
-    <span
-      className={`text-[12px] px-2.5 py-1 rounded-full font-semibold ${
-        b.paymentStatus === 'paid'
-          ? 'bg-[#2fd18f]/15 text-[#2fd18f]'
-          : b.paymentStatus === 'refunded'
-          ? 'bg-[#f25c78]/15 text-[#f25c78]'
-          : 'bg-[#6c8cf5]/15 text-[#6c8cf5]'
-      }`}
-    >
-      {b.paymentStatus.charAt(0).toUpperCase() + b.paymentStatus.slice(1)}
-    </span>
-    {b.paymentMethod === 'cash' && (
-      <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-[#f2a13c]/15 text-[#f2a13c]">Cash</span>
-    )}
-  </div>
-</td>
-                        <td className="px-5 py-4 text-right">
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
+                              b.paymentStatus === 'paid' ? 'bg-[#2fd18f]/15 text-[#2fd18f]' :
+                              b.paymentStatus === 'refunded' ? 'bg-[#f25c78]/15 text-[#f25c78]' :
+                              'bg-[#6c8cf5]/15 text-[#6c8cf5]'
+                            }`}>
+                              {b.paymentStatus.charAt(0).toUpperCase() + b.paymentStatus.slice(1)}
+                            </span>
+                            {b.paymentMethod === 'cash' && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-[#f2a13c]/15 text-[#f2a13c]">Cash</span>
+                            )}
+                            {b.paymentMethod === 'card' && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-[#6c8cf5]/15 text-[#6c8cf5]">Card</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
                             {b.paymentStatus === 'unpaid' && b.status === 'pending' && (
                               <button
@@ -1430,9 +1424,9 @@ export default function AdminPage() {
                                     onConfirm: () => handleApproveCash(b._id),
                                   })
                                 }}
-                                className="px-2 py-1 rounded-[6px] text-[11px] font-semibold text-[#2fd18f] bg-[#2fd18f]/10 hover:bg-[#2fd18f]/20 transition-all cursor-pointer border-none"
+                                className="px-2 py-1 rounded-[6px] text-[10px] font-semibold text-[#2fd18f] bg-[#2fd18f]/10 hover:bg-[#2fd18f]/20 transition-all cursor-pointer border-none whitespace-nowrap"
                               >
-                                Approve Cash
+                                Approve
                               </button>
                             )}
                             {b.paymentStatus === 'paid' && b.paymentMethod === 'card' && (
@@ -1501,9 +1495,18 @@ export default function AdminPage() {
             </div>
 
             {/* Desktop pagination */}
-            {bookingTotalPages > 1 && (
-              <div className="hidden md:flex items-center justify-between px-5 py-3 border-t border-[#23232f]">
-                <span className="text-[13px] text-[#6b6b7b]">Showing {bookingPage * BOOKINGS_PER_PAGE + 1}–{Math.min((bookingPage + 1) * BOOKINGS_PER_PAGE, filteredBookings.length)} of {filteredBookings.length}</span>
+            <div className="hidden md:flex items-center justify-between px-5 py-3 border-t border-[#23232f]">
+              <div className="flex items-center gap-4">
+                <span className="text-[13px] text-[#6b6b7b]">Showing {filteredBookings.length > 0 ? bookingPage * BOOKINGS_PER_PAGE + 1 : 0}–{Math.min((bookingPage + 1) * BOOKINGS_PER_PAGE, filteredBookings.length)} of {filteredBookings.length}</span>
+                <button
+                  onClick={() => handleDownloadBookingsReport(bookings, rooms)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[12px] font-semibold text-[#9a9aab] border border-[#23232f] bg-[#0a0a0f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40 transition-all cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download Report
+                </button>
+              </div>
+              {bookingTotalPages > 1 && (
                 <div className="flex items-center gap-2">
                   <button onClick={() => setBookingPage((p) => Math.max(0, p - 1))} disabled={bookingPage === 0} className="px-3 py-1.5 rounded-[6px] text-[13px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Prev</button>
                   {Array.from({ length: bookingTotalPages }, (_, i) => (
@@ -1511,8 +1514,8 @@ export default function AdminPage() {
                   ))}
                   <button onClick={() => setBookingPage((p) => Math.min(bookingTotalPages - 1, p + 1))} disabled={bookingPage >= bookingTotalPages - 1} className="px-3 py-1.5 rounded-[6px] text-[13px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Next</button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Mobile filters */}
             <div className="block md:hidden px-4 py-3 border-b border-[#23232f] space-y-2.5">
@@ -1648,6 +1651,9 @@ export default function AdminPage() {
                       </span>
                       {b.paymentMethod === 'cash' && (
                         <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-[#f2a13c]/15 text-[#f2a13c]">Cash</span>
+                      )}
+                      {b.paymentMethod === 'card' && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-[#6c8cf5]/15 text-[#6c8cf5]">Card</span>
                       )}
                       <span className="text-[#6b6b7b] text-[12px]">{b.deviceCount} device{b.deviceCount > 1 ? 's' : ''}</span>
                     </div>

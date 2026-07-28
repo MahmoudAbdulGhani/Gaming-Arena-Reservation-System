@@ -206,7 +206,7 @@ export default function RoomsPage() {
                 <input
                   type="range"
                   min="10"
-                  max="100"
+                  max="50"
                   value={maxPrice}
                   onChange={(e) => setMaxPrice(Number(e.target.value))}
                   className="w-32 accent-[#7C5CFF]"
