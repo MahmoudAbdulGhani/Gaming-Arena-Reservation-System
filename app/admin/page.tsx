@@ -1499,7 +1499,7 @@ export default function AdminPage() {
               <div className="flex items-center gap-4">
                 <span className="text-[13px] text-[#6b6b7b]">Showing {filteredBookings.length > 0 ? bookingPage * BOOKINGS_PER_PAGE + 1 : 0}–{Math.min((bookingPage + 1) * BOOKINGS_PER_PAGE, filteredBookings.length)} of {filteredBookings.length}</span>
                 <button
-                  onClick={() => handleDownloadBookingsReport(bookings, rooms)}
+                  onClick={() => handleDownloadBookingsReport(filteredBookings, rooms)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[12px] font-semibold text-[#9a9aab] border border-[#23232f] bg-[#0a0a0f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40 transition-all cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
@@ -2003,6 +2003,13 @@ export default function AdminPage() {
             {/* Desktop pagination */}
             <div className="hidden md:flex items-center justify-between px-5 py-3 border-t border-[#23232f]">
               <span className="text-[13px] text-[#6b6b7b]">Showing {filteredUsers.length > 0 ? userPage * USERS_PER_PAGE + 1 : 0}–{Math.min((userPage + 1) * USERS_PER_PAGE, filteredUsers.length)} of {filteredUsers.length} users</span>
+               <button
+                  onClick={() => handleDownloadUsersReport(filteredUsers)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[12px] font-semibold text-[#9a9aab] border border-[#23232f] bg-[#0a0a0f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40 transition-all cursor-pointer"
+                >
+                 <Download className="w-3.5 h-3.5" />
+                    Download Report
+                </button>
               {userTotalPages > 1 && (
                 <div className="flex items-center gap-2">
                   <button onClick={() => setUserPage((p) => Math.max(0, p - 1))} disabled={userPage === 0} className="px-3 py-1.5 rounded-[6px] text-[13px] font-medium text-[#9a9aab] bg-[#0a0a0f] border border-[#23232f] hover:text-[#f5f5f7] hover:border-[#7c6cf2]/40 transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">Prev</button>
@@ -2231,4 +2238,102 @@ function handleDownloadBookingsReport(bookings: Booking[], rooms: Room[]) {
   }
 
   doc.save(`gamezone-bookings-report-${Date.now()}.pdf`)
+}
+function handleDownloadUsersReport(users: AdminUser[]) {
+  const doc = new jsPDF()
+  const pageWidth = 210
+
+  // ---- Header band ---- (identical to bookings report, just a different subtitle)
+  doc.setFillColor(60, 52, 137)
+  doc.rect(0, 0, pageWidth, 30, 'F')
+
+  const logoSize = 8
+  doc.setFillColor(127, 119, 221)
+  doc.roundedRect(14, 8, logoSize, logoSize, 2, 2, 'F')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(9)
+  doc.setTextColor(255, 255, 255)
+  doc.text('G', 14 + logoSize / 2, 8 + logoSize / 2 + 1, { align: 'center' })
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(15)
+  doc.setTextColor(255, 255, 255)
+  doc.text('GameZone Arena', 26, 14)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  doc.setTextColor(206, 203, 246)
+  doc.text(
+    `Users Report  \u00b7  Generated ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+    26,
+    20
+  )
+
+  // ---- Summary stat cards ----
+  const totalCount = users.length
+  const verifiedCount = users.filter((u) => u.isVerified).length
+  const adminCount = users.filter((u) => u.role === 'admin').length
+  const totalSpentAll = users.reduce((s, u) => s + (u.totalSpent || 0), 0)
+
+  const stats: [string, string][] = [
+    ['Total Users', String(totalCount)],
+    ['Verified', String(verifiedCount)],
+    ['Admins', String(adminCount)],
+    ['Total Spent', `$${totalSpentAll}`],
+  ]
+
+  const statBoxWidth = 42
+  const statGap = 4
+  const statsStartX = 14
+  const statsY = 38
+
+  stats.forEach(([label, value], i) => {
+    const x = statsStartX + i * (statBoxWidth + statGap)
+    doc.setFillColor(241, 239, 232)
+    doc.roundedRect(x, statsY, statBoxWidth, 18, 3, 3, 'F')
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(95, 94, 90)
+    doc.text(label, x + 5, statsY + 7)
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(13)
+    doc.setTextColor(44, 44, 42)
+    doc.text(value, x + 5, statsY + 14)
+  })
+
+  // ---- Table ----
+  autoTable(doc, {
+    startY: 64,
+    head: [['Name', 'Email', 'Role', 'Phone', 'Verified', 'Bookings', 'Total Spent', 'Joined']],
+    body: users.map((u) => [
+      u.name,
+      u.email,
+      u.role.charAt(0).toUpperCase() + u.role.slice(1),
+      u.phone || '—',
+      u.isVerified ? 'Yes' : 'No',
+      String(u.bookings),
+      `$${u.totalSpent}`,
+      formatDate(u.createdAt),
+    ]),
+    styles: { fontSize: 9, cellPadding: 4, textColor: [44, 44, 42] },
+    headStyles: { fillColor: [60, 52, 137], textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 247, 243] },
+    columnStyles: {
+      6: { halign: 'right' },
+    },
+  })
+
+  // ---- Page numbers ----
+  const totalPages = doc.getNumberOfPages()
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(180, 178, 169)
+    doc.text(`Page ${i} of ${totalPages}`, pageWidth - 14, doc.internal.pageSize.height - 10, { align: 'right' })
+  }
+
+  doc.save(`gamezone-users-report-${Date.now()}.pdf`)
 }
