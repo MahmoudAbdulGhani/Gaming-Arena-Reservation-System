@@ -26,7 +26,7 @@ export default function OverviewTab({ user, onUpdateBooking,onViewAllUpcoming, b
   const totalBookings = bookings.length
 
   const upcomingBookings = bookings.filter(
-    (b) => b.status === 'pending' || b.status === 'confirmed'
+    (b) => b.status === 'pending' || b.status === 'confirmed' || b.status === 'in_progress'
   )
   const upcomingCount = upcomingBookings.length
 

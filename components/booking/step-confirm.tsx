@@ -184,7 +184,7 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
               },
               { label: 'Time', value: `${formatTime12(startTime)} – ${formatTime12(endTime)}` },
               { label: 'Duration', value: `${durationHours} hour${durationHours > 1 ? 's' : ''}` },
-              { label: 'Devices', value: `${devices?.length ?? 0} × $${room.pricePerHour}/hr` },
+              { label: 'Pricing', value: room.type === 'private' ? `$${room.pricePerHour}/hr (flat rate)` : `${devices?.length ?? 0} × $${room.pricePerHour}/hr` },
             ].map(({ label, value }) => (
               <div key={label} className="flex items-center justify-between text-sm">
                 <dt className="text-[#9BA3B7]">{label}</dt>

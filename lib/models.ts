@@ -55,7 +55,7 @@ export interface Device {
 // BOOKING  (1 user -> many bookings, 1 room -> many bookings,
 //           1 booking -> many devices, 1 booking -> 1 payment)
 // ================================================================
-export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
+export type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
 export type PaymentStatus = 'unpaid' | 'paid' | 'refunded';
 
 export interface Booking {
@@ -75,6 +75,22 @@ export interface Booking {
   confirmationMessage?: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+// ================================================================
+// NOTIFICATION
+// ================================================================
+export type NotificationType = 'reminder' | 'confirmation' | 'cancellation' | 'info';
+
+export interface Notification {
+  _id?: ObjectId;
+  userId: ObjectId; // FK -> users._id
+  bookingId?: ObjectId; // FK -> bookings._id (optional)
+  type: NotificationType;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: Date;
 }
 
 // ================================================================

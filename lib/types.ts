@@ -10,6 +10,7 @@ import type {
   PaymentStatus,
   UserRole,
   TransactionStatus,
+  NotificationType,
 } from './models'
 
 export type {
@@ -20,6 +21,7 @@ export type {
   PaymentStatus,
   UserRole,
   TransactionStatus,
+  NotificationType,
 }
 
 export interface Room {
@@ -90,6 +92,17 @@ export interface Payment {
   updatedAt: string
 }
 
+export interface Notification {
+  _id: string
+  userId: string
+  bookingId?: string
+  type: NotificationType
+  title: string
+  message: string
+  read: boolean
+  createdAt: string
+}
+
 // UI-only concept — has no matching database collection.
 export interface TimeSlot {
   time: string
@@ -128,18 +141,9 @@ export const roomTypeLabels: Record<RoomType, string> = {
 export type RoomAvailability = 'available' | 'booked' | 'maintenance' | 'inactive'
 
 export function getRoomAvailability(room: Room, devices: Device[]): RoomAvailability {
-  // Admin-set states always win, regardless of device status.
   if (room.status === 'inactive') return 'inactive'
   if (room.status === 'maintenance') return 'maintenance'
-
-  if (devices.length === 1) {
-    const [device] = devices
-    if (device.status === 'maintenance') return 'maintenance'
-    return device.status === 'available' ? 'available' : 'booked'
-  }
-
-  const availableCount = devices.filter((d) => d.status === 'available').length
-  return availableCount > 0 ? 'available' : 'booked'
+  return devices.length > 0 ? 'available' : 'booked'
 }
 
 // Payload shape for the admin "activate/deactivate room" action. Only
@@ -159,8 +163,8 @@ export interface UpdateRoomStatusPayload {
 
 /** Convert "14:00" → "2:00 PM" */
 export function formatTime12(time24: string): string {
-  const [h] = time24.split(':').map(Number)
+  const [h, m] = time24.split(':').map(Number)
   const period = h >= 12 ? 'PM' : 'AM'
   const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h
-  return `${hour12}:00 ${period}`
+  return `${hour12}:${String(m).padStart(2, '0')} ${period}`
 }

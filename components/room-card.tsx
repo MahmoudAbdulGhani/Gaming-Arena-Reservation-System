@@ -14,6 +14,13 @@ const typeLabels: Record<string, string> = {
   private: 'Private Room',
 }
 
+const typeImages: Record<string, string> = {
+  pc: '/images/room-pc.png',
+  console: '/images/room-console.png',
+  vr: '/images/room-vr.png',
+  private: '/images/room-private.png',
+}
+
 const typeIcons: Record<string, React.ReactNode> = {
   pc: <Monitor className="w-4 h-4" />,
   console: <Gamepad2 className="w-4 h-4" />,
@@ -41,14 +48,14 @@ export default function RoomCard({ room, compact = false, availableCount: ac, to
 
   const availability = room.status === 'inactive' ? 'inactive' as const
     : room.status === 'maintenance' ? 'maintenance' as const
-    : availableCount > 0 ? 'available' as const
+    : totalCount > 0 ? 'available' as const
     : 'booked' as const
 
   const statusConfig = {
-    available: { label: 'Rooms Open', color: 'text-[#33E6A0] bg-[#33E6A0]/10 border-[#33E6A0]/20' },
-    booked: { label: 'Fully Booked', color: 'text-[#FF5C7A] bg-[#FF5C7A]/10 border-[#FF5C7A]/20' },
-    maintenance: { label: 'Maintenance', color: 'text-[#9BA3B7] bg-[#9BA3B7]/10 border-[#9BA3B7]/20' },
-    inactive: { label: 'Closed', color: 'text-[#9BA3B7] bg-[#9BA3B7]/10 border-[#9BA3B7]/20' },
+    available: { label: 'Rooms Open', color: 'text-white bg-[#33E6A0]/80 border-[#33E6A0]' },
+    booked: { label: 'Fully Booked', color: 'text-white bg-[#FF5C7A]/80 border-[#FF5C7A]' },
+    maintenance: { label: 'Maintenance', color: 'text-white bg-[#FF9F5C]/80 border-[#FF9F5C]' },
+    inactive: { label: 'Closed', color: 'text-white bg-[#6B6B7B]/80 border-[#6B6B7B]' },
   }
 
   const status = statusConfig[availability]
@@ -62,7 +69,7 @@ export default function RoomCard({ room, compact = false, availableCount: ac, to
       {/* Image */}
       <div className="relative overflow-hidden" style={{ height: compact ? '160px' : '200px' }}>
         <Image
-          src={room.images[0] || '/images/room-pc.png'}
+          src={room.images[0] || typeImages[room.type] || '/images/room-pc.png'}
           alt={`${room.name} gaming room`}
           fill
           className="object-cover transition-transform duration-300 group-hover:scale-105"

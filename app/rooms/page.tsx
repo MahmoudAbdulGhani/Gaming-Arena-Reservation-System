@@ -18,11 +18,8 @@ const roomTypes: { label: string; value: RoomType | 'All'; icon: React.ReactNode
 function getRoomAvailabilityFromDevices(room: Room, devices: Device[]): RoomAvailability {
   if (room.status === 'inactive') return 'inactive'
   if (room.status === 'maintenance') return 'maintenance'
-  if (devices.length === 1) {
-    if (devices[0].status === 'maintenance') return 'maintenance'
-    return devices[0].status === 'available' ? 'available' : 'booked'
-  }
-  return devices.filter((d) => d.status === 'available').length > 0 ? 'available' : 'booked'
+  if (devices.length === 0) return 'booked'
+  return 'available'
 }
 
 export default function RoomsPage() {

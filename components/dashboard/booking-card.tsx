@@ -1,24 +1,21 @@
 import Image from "next/image";
-import { Calendar, Clock, DollarSign, Monitor, Gamepad2, Glasses, Users } from "lucide-react";
+import { Calendar, Clock, DollarSign, Monitor, Gamepad2, Glasses, Users, Cpu } from "lucide-react";
 import type { Booking, BookingStatus, RoomType } from "@/lib/types";
 import { formatTime12 } from "@/lib/types";
 import { checkBookingPolicy } from '@/lib/booking-policy'
-
-
-
-// Room type -> small icon + label shown under the room name.
-const typeLabels: Record<RoomType, string> = {
-  pc: "PC",
-  console: "Console",
-  vr: "VR",
-  private: "Private Room",
-};
 
 const typeIcons: Record<RoomType, React.ReactNode> = {
   pc: <Monitor className="w-3.5 h-3.5" />,
   console: <Gamepad2 className="w-3.5 h-3.5" />,
   vr: <Glasses className="w-3.5 h-3.5" />,
   private: <Users className="w-3.5 h-3.5" />,
+};
+
+const typeColors: Record<RoomType, string> = {
+  pc: "bg-[#7C5CFF]/15 text-[#7C5CFF]",
+  console: "bg-[#4C6FFF]/15 text-[#4C6FFF]",
+  vr: "bg-[#33E6A0]/15 text-[#33E6A0]",
+  private: "bg-[#FF9F5C]/15 text-[#FF9F5C]",
 };
 
 // Booking status -> pill color + dot color, shown top-right of the card.
@@ -32,6 +29,11 @@ const statusConfig: Record<BookingStatus, { label: string; dot: string; pill: st
     label: "Confirmed",
     dot: "bg-[#33E6A0]",
     pill: "text-[#33E6A0] bg-[#33E6A0]/10 border-[#33E6A0]/20",
+  },
+  in_progress: {
+    label: "In Progress",
+    dot: "bg-[#4C6FFF]",
+    pill: "text-[#4C6FFF] bg-[#4C6FFF]/10 border-[#4C6FFF]/20",
   },
   completed: {
     label: "Completed",
@@ -92,17 +94,17 @@ export default function BookingCard({ booking, onModify, onCancel }: BookingCard
           />
         </div>
 
-        <div>
-          <p className="font-semibold text-lg text-[#F5F6FA]">{room?.name ?? "Room"}</p>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="font-semibold text-lg text-[#F5F6FA] truncate">{room?.name ?? "Room"}</p>
+            {room && (
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold shrink-0 ${typeColors[room.type]}`}>
+                {typeIcons[room.type]}
+              </span>
+            )}
+          </div>
 
-          {room && (
-            <span className="inline-flex items-center gap-1.5 text-sm text-[#7C5CFF] mt-1">
-              {typeIcons[room.type]}
-              {typeLabels[room.type]}
-            </span>
-          )}
-
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-sm text-[#9BA3B7]">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-[#9BA3B7]">
             <span className="inline-flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5" aria-hidden="true" />
               {formattedDate}
@@ -112,7 +114,7 @@ export default function BookingCard({ booking, onModify, onCancel }: BookingCard
               {formatTime12(booking.startTime)} · {booking.durationHours}h
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <DollarSign className="w-3.5 h-3.5" aria-hidden="true" />${booking.totalPrice}
+              <DollarSign className="w-3.5 h-3.5" aria-hidden="true" />{booking.totalPrice}
             </span>
           </div>
 

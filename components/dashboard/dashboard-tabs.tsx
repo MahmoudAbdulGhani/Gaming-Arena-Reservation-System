@@ -25,15 +25,22 @@ export default function DashboardTabs({ user, initialTab }: DashboardTabsProps) 
       setBookingsLoading(false)
       return
     }
-    fetch('/api/bookings/my', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        setBookings(Array.isArray(data) ? data : [])
+
+    function fetchBookings() {
+      fetch('/api/bookings/my', {
+        headers: { Authorization: `Bearer ${token}` },
       })
-      .catch(() => setBookings([]))
-      .finally(() => setBookingsLoading(false))
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          setBookings(Array.isArray(data) ? data : [])
+        })
+        .catch(() => setBookings([]))
+        .finally(() => setBookingsLoading(false))
+    }
+
+    fetchBookings()
+    const interval = setInterval(fetchBookings, 60_000)
+    return () => clearInterval(interval)
   }, [])
 
   async function updateBooking(bookingId: string, changes: Partial<Booking>) {
@@ -59,7 +66,7 @@ export default function DashboardTabs({ user, initialTab }: DashboardTabsProps) 
   }
 
   const upcomingCount = bookings.filter(
-  (b) => b.status === 'pending' || b.status === 'confirmed'
+  (b) => b.status === 'pending' || b.status === 'confirmed' || b.status === 'in_progress'
 ).length
 
 const historyCount = bookings.filter(

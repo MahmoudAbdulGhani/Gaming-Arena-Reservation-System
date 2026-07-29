@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth'
 import { getDb } from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
+import { transitionAndFreeDevices } from '@/lib/booking-transitions'
 
 export async function GET(request: Request) {
   try {
@@ -18,6 +19,7 @@ export async function GET(request: Request) {
     }
 
     const db = await getDb()
+    await transitionAndFreeDevices(db)
     const bookings = await db
       .collection('bookings')
       .find({ userId: new ObjectId(payload.userId) })

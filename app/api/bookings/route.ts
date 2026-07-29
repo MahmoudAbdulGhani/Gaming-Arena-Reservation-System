@@ -23,11 +23,38 @@ export async function POST(request: Request) {
     const endHour = parseInt(startTime.split(':')[0]) + durationHours
     const endTime = `${String(endHour).padStart(2, '0')}:00`
 
+    const roomDoc = await db.collection('rooms').findOne({ _id: new ObjectId(roomId) })
+    const isPrivate = roomDoc?.type === 'private'
+    let finalDeviceIds: ObjectId[] = (deviceIds ?? []).map((id: string) => new ObjectId(id))
+    let finalDeviceCount = finalDeviceIds.length
+
+    if (isPrivate) {
+      const allRoomDevices = await db.collection('devices').find({ roomId: new ObjectId(roomId) }).toArray()
+      finalDeviceIds = allRoomDevices.map((d) => d._id)
+      finalDeviceCount = allRoomDevices.length
+    }
+
+    // Server-side conflict check: ensure none of the requested devices
+    // are already booked in an overlapping time slot
+    if (finalDeviceIds.length > 0) {
+      const conflicting = await db.collection('bookings').findOne({
+        roomId: new ObjectId(roomId),
+        bookingDate: new Date(bookingDate),
+        status: { $in: ['pending', 'confirmed', 'in_progress'] },
+        startTime: { $lt: endTime },
+        endTime: { $gt: startTime },
+        deviceIds: { $in: finalDeviceIds },
+      })
+      if (conflicting) {
+        return NextResponse.json({ error: 'One or more devices are already booked for this time slot' }, { status: 409 })
+      }
+    }
+
     const booking = {
       userId: new ObjectId(payload.userId),
       roomId: new ObjectId(roomId),
-      deviceIds: (deviceIds ?? []).map((id: string) => new ObjectId(id)),
-      deviceCount: deviceIds?.length ?? 0,
+      deviceIds: finalDeviceIds,
+      deviceCount: finalDeviceCount,
       bookingDate: new Date(bookingDate),
       startTime,
       endTime,
@@ -55,9 +82,9 @@ export async function POST(request: Request) {
       })
     }
 
-    if (deviceIds && deviceIds.length > 0) {
+    if (finalDeviceIds.length > 0) {
       await db.collection('devices').updateMany(
-        { _id: { $in: deviceIds.map((id: string) => new ObjectId(id)) } },
+        { _id: { $in: finalDeviceIds } },
         { $set: { status: 'booked' } }
       )
     }
@@ -71,6 +98,23 @@ export async function POST(request: Request) {
 
     const saved = await db.collection('bookings').findOne({ _id: result.insertedId })
     const room = await db.collection('rooms').findOne({ _id: new ObjectId(roomId) })
+
+    const bookingUser = await db.collection('users').findOne({ _id: new ObjectId(payload.userId) })
+    if (bookingUser) {
+      const admins = await db.collection('users').find({ role: 'admin' }).toArray()
+      const adminNotifications = admins.map((admin) => ({
+        userId: admin._id,
+        bookingId: result.insertedId,
+        type: 'info',
+        title: 'New Booking',
+        message: `${bookingUser.name} booked ${room?.name || 'a room'} on ${bookingDate} at ${startTime} (${durationHours}h, $${totalPrice})`,
+        read: false,
+        createdAt: new Date(),
+      }))
+      if (adminNotifications.length > 0) {
+        await db.collection('notifications').insertMany(adminNotifications)
+      }
+    }
 
     const data = {
       ...toJSON(saved as Record<string, unknown>),

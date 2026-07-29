@@ -61,8 +61,21 @@ function BookingContent() {
   }, [matchedRoom])
 
   const handleStepComplete = (data: Partial<BookingData>) => {
-    setBookingData((prev) => ({ ...prev, ...data }))
-    setCurrentStep((prev) => prev + 1)
+    setBookingData((prev) => {
+      const updated = { ...prev, ...data }
+      if (updated.room?.type === 'private') {
+        updated.devices = []
+        updated.totalPrice = updated.room.pricePerHour * (updated.durationHours || 1)
+      }
+      return updated
+    })
+    const nextStep = currentStep + 1
+    const room = (data as any).room || bookingData.room
+    if (room?.type === 'private' && nextStep === 3) {
+      setCurrentStep(4)
+    } else {
+      setCurrentStep(nextStep)
+    }
   }
 
   const handleBookingComplete = (data: Partial<BookingData>) => {
@@ -153,7 +166,7 @@ function BookingContent() {
             <BookingStepConfirm
               bookingData={bookingData}
               onComplete={handleBookingComplete}
-              onBack={() => setCurrentStep(3)}
+              onBack={() => setCurrentStep(bookingData.room?.type === 'private' ? 2 : 3)}
             />
           </StripeProvider>
         )}

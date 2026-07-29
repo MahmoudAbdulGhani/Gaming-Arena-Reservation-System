@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import Link from 'next/link'
 import { Search, Plus, Pencil, Eye, Trash2, X, Download, Lock, AlertCircle, CreditCard, Banknote, CheckCircle2 } from 'lucide-react'
 import Navbar from '@/components/navbar'
 import type { Device, RoomType, User, Room, Booking } from '@/lib/types'
+import { formatTime12 } from '@/lib/types'
 import { CardElement, useStripe, useElements, Elements } from '@stripe/react-stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
 import jsPDF from 'jspdf'
@@ -58,6 +58,7 @@ function getRoomStat(roomId: string, devices: Device[]) {
 function statusClass(status: string) {
   switch (status) {
     case 'confirmed': return 'bg-[#2fd18f]/15 text-[#2fd18f]'
+    case 'in_progress': return 'bg-[#4C6FFF]/15 text-[#4C6FFF]'
     case 'completed': return 'bg-[#23232f] text-[#9a9aab]'
     case 'cancelled': return 'bg-[#f25c78]/15 text-[#f25c78]'
     case 'pending': return 'bg-[#6c8cf5]/15 text-[#6c8cf5]'
@@ -65,8 +66,17 @@ function statusClass(status: string) {
   }
 }
 
+function formatStatus(status: string) {
+  return status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 function formatDate(d: string) {
-  return new Date(d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+  const [datePart] = d.split('T')
+  const [y, m, day] = datePart.split('-')
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const weekdayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const dt = new Date(Date.UTC(Number(y), Number(m) - 1, Number(day)))
+  return `${weekdayNames[dt.getUTCDay()]}, ${monthNames[Number(m) - 1]} ${Number(day)}, ${y}`
 }
 
 interface DetailItem { label: string; value: string; color?: string }
@@ -215,6 +225,7 @@ function RoomEditModal({ room, onSave, onClose }: { room: { id: string; name: st
   const [name, setName] = useState(room.name)
   const [price, setPrice] = useState(String(room.pricePerHour))
   const [type, setType] = useState(room.type)
+  const [status, setStatus] = useState(room.status)
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-[#12121a] border border-[#23232f] rounded-[16px] w-full max-w-sm mx-4 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -257,12 +268,25 @@ function RoomEditModal({ room, onSave, onClose }: { room: { id: string; name: st
               className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors"
             />
           </div>
+          <div>
+            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Status</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b6b7b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 8px center', backgroundRepeat: 'no-repeat', backgroundSize: '20px' }}
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="maintenance">Maintenance</option>
+            </select>
+          </div>
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-[#9a9aab] border border-[#23232f] bg-transparent hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer">
               Cancel
             </button>
             <button
-              onClick={() => onSave(room.id, { name, type, pricePerHour: parseInt(price) || 0, images: room.images, status: room.status })}
+              onClick={() => onSave(room.id, { name, type, pricePerHour: parseInt(price) || 0, images: room.images, status })}
               className="flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-white border-none cursor-pointer btn-primary-gradient glow-violet transition-all duration-200"
             >
               Save
@@ -754,6 +778,137 @@ function AddDeviceModal({ rooms, onSave, onClose }: { rooms: Room[]; onSave: (da
   )
 }
 
+function ManageRoomModal({ room, devices, rooms, onEditDevice, onDeleteDevice, onAddDevice, onClose }: { room: Room; devices: Device[]; rooms: Room[]; onEditDevice: (device: Device) => void; onDeleteDevice: (id: string) => void; onAddDevice: (roomId: string, deviceLabel: string, specs: string, status: string) => void; onClose: () => void }) {
+  const roomDevices = devices.filter((d) => d.roomId === room._id)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [newLabel, setNewLabel] = useState('')
+  const [newSpecs, setNewSpecs] = useState('')
+  const [newStatus, setNewStatus] = useState('available')
+  const [editingDeviceId, setEditingDeviceId] = useState<string | null>(null)
+  const [editLabel, setEditLabel] = useState('')
+  const [editSpecs, setEditSpecs] = useState('')
+  const [editStatus, setEditStatus] = useState('')
+
+  function startEdit(d: Device) {
+    setEditingDeviceId(d._id)
+    setEditLabel(d.deviceLabel ?? '')
+    setEditSpecs(d.specs ?? '')
+    setEditStatus(d.status ?? 'available')
+  }
+
+  function cancelEdit() {
+    setEditingDeviceId(null)
+  }
+
+  function saveEdit(d: Device) {
+    onEditDevice({ ...d, deviceLabel: editLabel, specs: editSpecs, status: editStatus as Device['status'] })
+    setEditingDeviceId(null)
+  }
+
+  function handleAdd() {
+    if (!newLabel.trim()) return
+    onAddDevice(room._id, newLabel.trim(), newSpecs.trim(), newStatus as Device['status'])
+    setNewLabel('')
+    setNewSpecs('')
+    setNewStatus('available')
+    setShowAddForm(false)
+  }
+
+  const deviceStatusColor = (s: string) =>
+    s === 'available' ? 'bg-[#2fd18f]/15 text-[#2fd18f]' :
+    s === 'booked' ? 'bg-[#6c8cf5]/15 text-[#6c8cf5]' :
+    'bg-[#f2a13c]/15 text-[#f2a13c]'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-[#12121a] border border-[#23232f] rounded-[16px] w-full max-w-lg mx-4 p-6 shadow-2xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5 shrink-0">
+          <h3 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>
+            Manage Devices — {room.name}
+          </h3>
+          <button onClick={onClose} className="p-1.5 rounded-[8px] text-[#6b6b7b] hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex items-center gap-3 text-[13px] text-[#6b6b7b] mb-4 shrink-0">
+          <span className={`px-2 py-0.5 rounded-full font-semibold ${room.status === 'active' ? 'bg-[#2fd18f]/15 text-[#2fd18f]' : room.status === 'maintenance' ? 'bg-[#f2a13c]/15 text-[#f2a13c]' : 'bg-[#f25c78]/15 text-[#f25c78]'}`}>
+            {formatStatus(room.status)}
+          </span>
+          <span>${room.pricePerHour}/hr</span>
+          <span>{typeLabels[room.type]}</span>
+          <span className="ml-auto">{roomDevices.length} device{roomDevices.length !== 1 ? 's' : ''}</span>
+        </div>
+
+        <div className="overflow-y-auto flex-1 -mx-6 px-6">
+          {roomDevices.length === 0 && !showAddForm && (
+            <p className="text-[13px] text-[#6b6b7b] text-center py-8">No devices in this room yet.</p>
+          )}
+          {roomDevices.map((d) => (
+            <div key={d._id} className="flex items-center gap-3 py-3 border-b border-[#23232f] last:border-b-0">
+              {editingDeviceId === d._id ? (
+                <>
+                  <div className="flex-1 space-y-2">
+                    <input type="text" value={editLabel} onChange={(e) => setEditLabel(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-3 py-1.5 text-[13px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2]" />
+                    <input type="text" value={editSpecs} onChange={(e) => setEditSpecs(e.target.value)} placeholder="Specs" className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-3 py-1.5 text-[13px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2]" />
+                    <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-3 py-1.5 text-[13px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] appearance-none cursor-pointer">
+                      <option value="available">Available</option>
+                      <option value="booked">Booked</option>
+                      <option value="maintenance">Maintenance</option>
+                    </select>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <button onClick={() => saveEdit(d)} className="px-2.5 py-1.5 rounded-[6px] text-[12px] font-semibold text-white bg-[#2fd18f] hover:bg-[#28b87e] transition-all cursor-pointer border-none">Save</button>
+                    <button onClick={cancelEdit} className="px-2.5 py-1.5 rounded-[6px] text-[12px] font-semibold text-[#9a9aab] border border-[#23232f] hover:text-[#f5f5f7] transition-all cursor-pointer bg-transparent">Cancel</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[14px] font-medium text-[#f5f5f7] truncate">{d.deviceLabel}</div>
+                    {d.specs && <div className="text-[12px] text-[#6b6b7b] truncate">{d.specs}</div>}
+                  </div>
+                  <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${deviceStatusColor(d.status)}`}>
+                    {formatStatus(d.status)}
+                  </span>
+                  <button onClick={() => startEdit(d)} className="p-1.5 rounded-[6px] text-[#6b6b7b] hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent" title="Edit device">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => onDeleteDevice(d._id)} className="p-1.5 rounded-[6px] text-[#f25c78]/60 hover:text-[#f25c78] hover:bg-[#f25c78]/10 transition-all cursor-pointer border-none bg-transparent" title="Delete device">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
+            </div>
+          ))}
+
+          {showAddForm && (
+            <div className="py-3 border-t border-[#23232f] mt-2 space-y-2">
+              <input type="text" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Device label (e.g. PC-01)" className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-3 py-1.5 text-[13px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2]" />
+              <input type="text" value={newSpecs} onChange={(e) => setNewSpecs(e.target.value)} placeholder="Specs (optional)" className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-3 py-1.5 text-[13px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2]" />
+              <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[6px] px-3 py-1.5 text-[13px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] appearance-none cursor-pointer">
+                <option value="available">Available</option>
+                <option value="booked">Booked</option>
+                <option value="maintenance">Maintenance</option>
+              </select>
+              <div className="flex gap-2 pt-1">
+                <button onClick={handleAdd} className="px-3 py-1.5 rounded-[6px] text-[12px] font-semibold text-white border-none cursor-pointer btn-primary-gradient glow-violet transition-all duration-200">Add Device</button>
+                <button onClick={() => { setShowAddForm(false); setNewLabel(''); setNewSpecs(''); setNewStatus('available') }} className="px-3 py-1.5 rounded-[6px] text-[12px] font-semibold text-[#9a9aab] border border-[#23232f] hover:text-[#f5f5f7] transition-all cursor-pointer bg-transparent">Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {!showAddForm && (
+          <button onClick={() => setShowAddForm(true)} className="mt-4 w-full py-2.5 rounded-[8px] text-[13px] font-semibold text-[#7c6cf2] border border-dashed border-[#7c6cf2]/30 hover:border-[#7c6cf2]/60 hover:bg-[#7c6cf2]/5 transition-all cursor-pointer bg-transparent shrink-0">
+            <Plus className="w-4 h-4 inline mr-1 -mt-0.5" />
+            Add Device
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function EditDeviceModal({ device, rooms, onSave, onClose }: { device: { _id: string; roomId: string; deviceLabel: string; specs: string; status: string }; rooms: Room[]; onSave: (id: string, data: DeviceFormData) => void; onClose: () => void }) {
   const [deviceLabel, setDeviceLabel] = useState(device.deviceLabel)
   const [specs, setSpecs] = useState(device.specs)
@@ -854,6 +1009,7 @@ export default function AdminPage() {
   const [showAddRoom, setShowAddRoom] = useState(false)
   const [showAddDevice, setShowAddDevice] = useState(false)
   const [editingDevice, setEditingDevice] = useState<Device | null>(null)
+  const [managingRoom, setManagingRoom] = useState<Room | null>(null)
   const [showAddReservation, setShowAddReservation] = useState(false)
   const BOOKINGS_PER_PAGE = 10
   const USERS_PER_PAGE = 10
@@ -1070,6 +1226,32 @@ export default function AdminPage() {
     }
   }, [fetchData])
 
+  const handleAddDeviceToRoom = useCallback(async (roomId: string, deviceLabel: string, specs: string, status: string) => {
+    try {
+      await apiFetch('/api/admin/devices', {
+        method: 'POST',
+        body: JSON.stringify({ roomId, deviceLabel, specs, status }),
+      })
+      setFeedback({ type: 'success', message: 'Device added successfully' })
+      await fetchData()
+    } catch (err) {
+      setFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Failed to add device' })
+    }
+  }, [fetchData])
+
+  const handleEditDeviceFromRoom = useCallback(async (device: Device) => {
+    try {
+      await apiFetch(`/api/admin/devices/${device._id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ deviceLabel: device.deviceLabel, specs: device.specs, status: device.status }),
+      })
+      setFeedback({ type: 'success', message: 'Device updated successfully' })
+      await fetchData()
+    } catch (err) {
+      setFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Failed to update device' })
+    }
+  }, [fetchData])
+
   const handleDeleteDevice = useCallback(async (id: string) => {
     try {
       await apiFetch(`/api/admin/devices/${id}`, { method: 'DELETE' })
@@ -1214,6 +1396,7 @@ export default function AdminPage() {
               <div className="bg-[#12121a] border border-[#23232f] rounded-[14px] p-[22px]">
                 <div className="flex justify-between items-center mb-4">
                   <div className="text-[16px] font-bold text-[#f5f5f7]" style={{ fontFamily: 'var(--font-display)' }}>Room & Device Status</div>
+                  <button onClick={() => setActiveTab('rooms')} className="text-[13px] text-[#7c6cf2] cursor-pointer hover:underline bg-transparent border-none">Manage</button>
                 </div>
                 {rooms.map((room) => {
                   const stat = getRoomStat(room._id, devices)
@@ -1231,7 +1414,6 @@ export default function AdminPage() {
                           <span className="w-1.5 h-1.5 rounded-full bg-current" />
                           {room.status.charAt(0).toUpperCase() + room.status.slice(1)}
                         </span>
-                        <button onClick={() => setActiveTab('rooms')} className="text-[13px] text-[#7c6cf2] cursor-pointer hover:underline bg-transparent border-none">Manage</button>
                       </div>
                     </div>
                   )
@@ -1253,7 +1435,7 @@ export default function AdminPage() {
                     <div className="ml-auto flex flex-col items-end gap-1.5">
                       <div className="text-[15px] font-bold text-[#f5f5f7]">${b.totalPrice}</div>
                       <span className={`text-[12px] px-2.5 py-1 rounded-full font-semibold ${statusClass(b.status)}`}>
-                        {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
+                        {formatStatus(b.status)}
                       </span>
                     </div>
                   </div>
@@ -1400,14 +1582,14 @@ export default function AdminPage() {
                         </td>
                         <td className="px-3 py-3">
                           <div className="text-[13px] text-[#f5f5f7]">{formatDate(b.bookingDate)}</div>
-                          <div className="text-[11px] text-[#6b6b7b]">{b.startTime} · {b.durationHours}h</div>
+                          <div className="text-[11px] text-[#6b6b7b]">{formatTime12(b.startTime)} · {b.durationHours}h</div>
                         </td>
                         <td className="px-3 py-3">
                           <span className="text-[13px] font-bold text-[#f5f5f7] text-center block">${b.totalPrice}</span>
                         </td>
                         <td className="px-3 py-3">
                           <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${statusClass(b.status)}`}>
-                            {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
+                            {formatStatus(b.status)}
                           </span>
                         </td>
                         <td className="px-3 py-3">
@@ -1466,12 +1648,12 @@ export default function AdminPage() {
                                   { label: 'Phone', value: (b as any).user?.phone || '—' },
                                   { label: 'Devices', value: `${b.deviceCount}` },
                                   { label: 'Date', value: formatDate(b.bookingDate) },
-                                  { label: 'Time', value: b.startTime },
+                                  { label: 'Time', value: formatTime12(b.startTime) },
                                   { label: 'Duration', value: `${b.durationHours}h` },
                                   { label: 'Amount', value: `$${b.totalPrice}` },
                                   {
                                     label: 'Status',
-                                    value: b.status.charAt(0).toUpperCase() + b.status.slice(1),
+                                    value: formatStatus(b.status),
                                     color:
                                       b.status === 'confirmed' ? '#2fd18f' :
                                       b.status === 'pending' ? '#6c8cf5' :
@@ -1625,7 +1807,7 @@ export default function AdminPage() {
                               { label: 'Time', value: b.startTime },
                               { label: 'Duration', value: `${b.durationHours}h` },
                               { label: 'Amount', value: `$${b.totalPrice}` },
-                              { label: 'Status', value: b.status.charAt(0).toUpperCase() + b.status.slice(1), color: b.status === 'confirmed' ? '#2fd18f' : b.status === 'pending' ? '#6c8cf5' : b.status === 'cancelled' ? '#f25c78' : '#9a9aab' },
+                              { label: 'Status', value: formatStatus(b.status), color: b.status === 'confirmed' ? '#2fd18f' : b.status === 'pending' ? '#6c8cf5' : b.status === 'cancelled' ? '#f25c78' : '#9a9aab' },
                               { label: 'Payment', value: b.paymentStatus.charAt(0).toUpperCase() + b.paymentStatus.slice(1) + (b.paymentMethod === 'cash' ? ' (Cash)' : ''), color: payColor },
                             ],
                           })}
@@ -1657,12 +1839,12 @@ export default function AdminPage() {
                       </div>
                     ) : null}
                     <div className="flex items-center justify-between text-[13px]">
-                      <span className="text-[#6b6b7b]">{formatDate(b.bookingDate)} · {b.startTime} · {b.durationHours}h</span>
+                      <span className="text-[#6b6b7b]">{formatDate(b.bookingDate)} · {formatTime12(b.startTime)} · {b.durationHours}h</span>
                       <span className="font-bold text-[#f5f5f7]">${b.totalPrice}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${statusClass(b.status)}`}>
-                        {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
+                        {formatStatus(b.status)}
                       </span>
                       <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
                         b.paymentStatus === 'paid' ? 'bg-[#2fd18f]/15 text-[#2fd18f]' :
@@ -1732,7 +1914,7 @@ export default function AdminPage() {
                 return (
                   <div key={room._id} className="bg-[#0a0a0f] border border-[#23232f] rounded-[14px] overflow-hidden">
                     <div className="relative">
-                      <img src={room.images?.[0] || '/images/room-pc.png'} alt="" className="w-full h-32 object-cover" />
+                      <img src={getRoomThumb(room)} alt="" className="w-full h-32 object-cover" />
                       <span className={`absolute top-3 left-3 text-[11px] px-2.5 py-1 rounded-full font-semibold inline-flex items-center gap-1.5 ${room.status === 'active' ? 'bg-[#2fd18f]/80 text-white' : room.status === 'maintenance' ? 'bg-[#f2a13c]/80 text-white' : 'bg-[#f25c78]/80 text-white'}`}>
                         <span className="w-1.5 h-1.5 rounded-full bg-current" />
                         {room.status.charAt(0).toUpperCase() + room.status.slice(1)}
@@ -1759,9 +1941,13 @@ export default function AdminPage() {
                           <Pencil className="w-3.5 h-3.5 inline mr-1.5 -mt-0.5" />
                           Edit
                         </button>
-                        <Link href={`/rooms/${room._id}`} className="px-3 py-[7px] rounded-[8px] text-[13px] font-semibold text-[#7c6cf2] border border-[#7c6cf2]/30 hover:border-[#7c6cf2] no-underline transition-all whitespace-nowrap">
-                          Open
-                        </Link>
+                        <button
+                          onClick={() => setManagingRoom(room)}
+                          className="flex-1 px-3 py-[7px] rounded-[8px] text-[13px] font-semibold text-[#7c6cf2] border border-[#7c6cf2]/30 hover:bg-[#7c6cf2]/10 transition-all cursor-pointer bg-transparent whitespace-nowrap"
+                        >
+                          <Eye className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />
+                          Devices
+                        </button>
                         <button
                           onClick={() => setConfirmModal({ message: `Are you sure you want to delete "${room.name}"? This action cannot be undone.`, onConfirm: () => handleDeleteRoom(room._id) })}
                           className="p-2 rounded-[8px] text-[#f25c78]/60 hover:text-[#f25c78] hover:bg-[#f25c78]/10 transition-all cursor-pointer border-none bg-transparent"
@@ -2159,6 +2345,17 @@ export default function AdminPage() {
       {showAddReservation && <AddReservationModal rooms={rooms} devices={devices} users={users} onSave={handleAddReservation} onSuccess={() => { setFeedback({ type: 'success', message: 'Reservation created and payment successful' }); setShowAddReservation(false); fetchData() }} onClose={() => setShowAddReservation(false)} />}
       {confirmModal && <ConfirmModal title={confirmModal.title ?? 'Confirm'} message={confirmModal.message} confirmText={confirmModal.confirmText ?? 'Confirm'} confirmButtonClassName={confirmModal.confirmButtonClassName} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(null)} />}
       {editingRoom && <RoomEditModal room={editingRoom} onSave={handleEditRoom} onClose={() => setEditingRoom(null)} />}
+      {managingRoom && (
+        <ManageRoomModal
+          room={managingRoom}
+          devices={devices}
+          rooms={rooms}
+          onEditDevice={handleEditDeviceFromRoom}
+          onDeleteDevice={(id) => setConfirmModal({ message: 'Delete this device? This cannot be undone.', onConfirm: () => handleDeleteDevice(id) })}
+          onAddDevice={handleAddDeviceToRoom}
+          onClose={() => setManagingRoom(null)}
+        />
+      )}
       <DetailModal open={detailModal.open} onClose={() => setDetailModal({ open: false, title: '', details: [] })} title={detailModal.title} details={detailModal.details} />
     </div>
   )
@@ -2241,10 +2438,10 @@ function handleDownloadBookingsReport(bookings: Booking[], rooms: Room[]) {
         room?.name || 'Room',
         String(b.deviceCount),
         formatDate(b.bookingDate),
-        b.startTime,
+        formatTime12(b.startTime),
         `${b.durationHours}h`,
         `$${b.totalPrice}`,
-        b.status.charAt(0).toUpperCase() + b.status.slice(1),
+        formatStatus(b.status),
         b.paymentStatus.charAt(0).toUpperCase() + b.paymentStatus.slice(1),
       ]
     }),

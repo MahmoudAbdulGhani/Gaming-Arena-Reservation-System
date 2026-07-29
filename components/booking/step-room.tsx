@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { Zap, Monitor, Gamepad2, Glasses, Users, Cpu } from 'lucide-react'
 import type { Room, Device } from '@/lib/types'
-import { getRoomAvailability, roomTypeLabels } from '@/lib/types'
+import { roomTypeLabels } from '@/lib/types'
 
 const typeIcons: Record<string, React.ReactNode> = {
   pc: <Monitor className="w-4 h-4" />,
@@ -43,12 +43,11 @@ export default function BookingStepRoom({ preselectedId, onComplete }: Props) {
   useEffect(() => {
     if (preselectedId && !loading) {
       const room = rooms.find((r) => r._id === preselectedId)
-      if (room) {
-        const roomDevices = devicesMap[room._id] ?? []
-        if (getRoomAvailability(room, roomDevices) === 'available') setSelected(room)
+      if (room && room.status !== 'inactive' && room.status !== 'maintenance') {
+        setSelected(room)
       }
     }
-  }, [preselectedId, rooms, devicesMap, loading])
+  }, [preselectedId, rooms, loading])
 
   const bookableRooms = rooms.filter((r) => r.status !== 'inactive' && r.status !== 'maintenance')
 
@@ -72,7 +71,6 @@ export default function BookingStepRoom({ preselectedId, onComplete }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8" role="radiogroup" aria-label="Select a gaming room">
         {bookableRooms.map((room) => {
           const devices = devicesMap[room._id] ?? []
-          const availableCount = devices.filter((d) => d.status === 'available').length
 
           return (
             <button
@@ -80,11 +78,9 @@ export default function BookingStepRoom({ preselectedId, onComplete }: Props) {
               onClick={() => setSelected(room)}
               role="radio"
               aria-checked={selected?._id === room._id}
-              disabled={availableCount === 0}
+              disabled={false}
               className={`relative text-left rounded-2xl border overflow-hidden transition-all duration-200 ${
-                availableCount === 0
-                  ? 'opacity-50 cursor-not-allowed border-[#262D3D]'
-                  : selected?._id === room._id
+                selected?._id === room._id
                   ? 'border-[#7C5CFF] glow-violet-sm'
                   : 'border-[#262D3D] hover:border-[#7C5CFF]/40'
               } bg-[#131824]`}
@@ -117,13 +113,27 @@ export default function BookingStepRoom({ preselectedId, onComplete }: Props) {
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Cpu className="w-3.5 h-3.5 text-[#9BA3B7]" aria-hidden="true" />
-                  <span className={`text-xs font-semibold ${availableCount > 0 ? 'text-[#33E6A0]' : 'text-[#FF5C7A]'}`}>
-                    {availableCount}
-                  </span>
-                  <span className="text-xs text-[#9BA3B7]">
-                    / {devices.length} devices available
-                  </span>
+                  {room.type === 'private' ? (
+                    <>
+                      <Users className="w-3.5 h-3.5 text-[#9BA3B7]" aria-hidden="true" />
+                      <span className="text-xs font-semibold text-[#9BA3B7]">
+                        {room.totalDevices}
+                      </span>
+                      <span className="text-xs text-[#9BA3B7]">
+                        capacity
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Cpu className="w-3.5 h-3.5 text-[#9BA3B7]" aria-hidden="true" />
+                      <span className="text-xs font-semibold text-[#9BA3B7]">
+                        {devices.length}
+                      </span>
+                      <span className="text-xs text-[#9BA3B7]">
+                        {devices.length === 1 ? ' device' : ' devices'}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             </button>

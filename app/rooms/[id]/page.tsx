@@ -155,7 +155,7 @@ export default async function RoomDetailPage({ params }: Props) {
                       ? 'text-[#33E6A0] bg-[#33E6A0]/10 border border-[#33E6A0]/20'
                       : device.status === 'booked'
                       ? 'text-[#FF5C7A] bg-[#FF5C7A]/10 border border-[#FF5C7A]/20'
-                      : 'text-[#9BA3B7] bg-[#9BA3B7]/10 border border-[#9BA3B7]/20'
+                      : 'text-[#FF9F5C] bg-[#FF9F5C]/10 border border-[#FF9F5C]/20'
                     }`}>
                       {device.status === 'available' ? (
                         <CheckCircle2 className="w-3 h-3" />
@@ -175,7 +175,7 @@ export default async function RoomDetailPage({ params }: Props) {
               <div className="sticky top-24 bg-[#131824] border border-[#262D3D] rounded-2xl p-6">
                 <div className="flex items-baseline gap-1 mb-6">
                   <span className="text-3xl font-black text-[#7C5CFF]">${roomData.pricePerHour}</span>
-                  <span className="text-sm text-[#9BA3B7]">/hour per device</span>
+                  <span className="text-sm text-[#9BA3B7]">{roomData.type === 'private' ? '/hour (flat rate)' : '/hour per device'}</span>
                 </div>
 
                 <div className="space-y-3 mb-6">

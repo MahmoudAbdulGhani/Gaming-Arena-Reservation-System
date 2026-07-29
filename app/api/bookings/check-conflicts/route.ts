@@ -20,8 +20,8 @@ export async function GET(request: Request) {
       .collection('bookings')
       .find({
         roomId: new ObjectId(roomId),
-        bookingDate: date,
-        status: { $in: ['pending', 'confirmed'] },
+        bookingDate: new Date(date),
+        status: { $in: ['pending', 'confirmed', 'in_progress'] },
         startTime: { $lt: endTime },
         endTime: { $gt: startTime },
       })

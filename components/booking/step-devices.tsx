@@ -81,7 +81,7 @@ export default function BookingStepDevices({ bookingData, onBack, onComplete }: 
 
   const getDeviceConfig = (device: Device) => {
     if (device.status === 'maintenance') return deviceStatusConfig.maintenance
-    if (device.status === 'booked' || bookedDeviceIds.has(device._id)) return deviceStatusConfig.booked
+    if (bookedDeviceIds.has(device._id)) return deviceStatusConfig.booked
     return deviceStatusConfig.available
   }
 

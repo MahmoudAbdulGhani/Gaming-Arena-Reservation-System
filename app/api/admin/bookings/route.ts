@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
 import { getDbWithAdminCheck, errorResponse, toJSON } from '@/lib/admin-helper'
 import { ObjectId } from 'mongodb'
+import { transitionAndFreeDevices } from '@/lib/booking-transitions'
 
 export async function GET(request: Request) {
   try {
     const { db } = await getDbWithAdminCheck(request)
+    await transitionAndFreeDevices(db)
     const bookings = await db.collection('bookings').find().sort({ createdAt: -1 }).toArray()
 
     const roomIds = [...new Set(bookings.map((b) => b.roomId.toString()))]
@@ -66,11 +68,22 @@ export async function POST(request: Request) {
       }
     }
 
+    const roomDoc = await db.collection('rooms').findOne({ _id: new ObjectId(roomId) })
+    const isPrivate = roomDoc?.type === 'private'
+    let finalDeviceIds: ObjectId[] = (deviceIds ?? []).map((id: string) => new ObjectId(id))
+    let finalDeviceCount = finalDeviceIds.length
+
+    if (isPrivate) {
+      const allRoomDevices = await db.collection('devices').find({ roomId: new ObjectId(roomId) }).toArray()
+      finalDeviceIds = allRoomDevices.map((d) => d._id)
+      finalDeviceCount = allRoomDevices.length
+    }
+
     const booking = {
       userId: new ObjectId(userId),
       roomId: new ObjectId(roomId),
-      deviceIds: (deviceIds ?? []).map((id: string) => new ObjectId(id)),
-      deviceCount: deviceIds?.length ?? 0,
+      deviceIds: finalDeviceIds,
+      deviceCount: finalDeviceCount,
       bookingDate: bookingDateObj,
       startTime,
       endTime,
@@ -85,9 +98,9 @@ export async function POST(request: Request) {
 
     const result = await db.collection('bookings').insertOne(booking)
 
-    if (deviceIds && deviceIds.length > 0) {
+    if (finalDeviceIds.length > 0) {
       await db.collection('devices').updateMany(
-        { _id: { $in: deviceIds.map((id: string) => new ObjectId(id)) } },
+        { _id: { $in: finalDeviceIds } },
         { $set: { status: 'booked' } }
       )
     }

@@ -14,7 +14,7 @@ interface UpcomingTabProps {
 
 export default function UpcomingTab({ bookings, onUpdateBooking  }: UpcomingTabProps) {
   const upcomingBookings = bookings.filter(
-    (b) => b.status === 'pending' || b.status === 'confirmed'
+    (b) => b.status === 'pending' || b.status === 'confirmed' || b.status === 'in_progress'
   )
 
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null)

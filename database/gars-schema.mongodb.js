@@ -111,7 +111,7 @@ db.createCollection('bookings', {
                 endTime: { bsonType: 'string', description: "e.g. '20:00'" },
                 durationHours: { bsonType: ['double', 'int'], minimum: 0 },
                 totalPrice: { bsonType: ['double', 'int', 'decimal'], minimum: 0 },
-                status: { bsonType: 'string', enum: ['pending', 'confirmed', 'completed', 'cancelled'] },
+                status: { bsonType: 'string', enum: ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled'] },
                 paymentStatus: { bsonType: 'string', enum: ['unpaid', 'paid', 'refunded'] },
                 paymentId: { bsonType: 'objectId', description: 'FK -> payments._id' },
                 confirmationMessage: { bsonType: 'string' },
@@ -130,7 +130,7 @@ db.getCollection('bookings').createIndex({ bookingDate: 1 });
 // prevents a room from being double-booked for the exact same date/time slot
 db.getCollection('bookings').createIndex(
     { roomId: 1, bookingDate: 1, startTime: 1 },
-    { unique: true, partialFilterExpression: { status: { $in: ['pending', 'confirmed'] } } }
+    { unique: true, partialFilterExpression: { status: { $in: ['pending', 'confirmed', 'in_progress'] } } }
 );
 
 // ================================================================
@@ -162,6 +162,33 @@ db.createCollection('payments', {
 // enforce the 1-to-1 relationship: a booking can have only one payment
 db.getCollection('payments').createIndex({ bookingId: 1 }, { unique: true });
 db.getCollection('payments').createIndex({ userId: 1 });
+
+// ================================================================
+// NOTIFICATION
+// ================================================================
+db.createCollection('notifications', {
+    validator: {
+        $jsonSchema: {
+            bsonType: 'object',
+            title: 'Notification Validation',
+            required: ['userId', 'type', 'title', 'message', 'read', 'createdAt'],
+            properties: {
+                userId: { bsonType: 'objectId', description: 'FK -> users._id' },
+                bookingId: { bsonType: 'objectId', description: 'FK -> bookings._id' },
+                type: { bsonType: 'string', enum: ['reminder', 'confirmation', 'cancellation', 'info'] },
+                title: { bsonType: 'string' },
+                message: { bsonType: 'string' },
+                read: { bsonType: 'bool' },
+                createdAt: { bsonType: 'date' }
+            }
+        }
+    },
+    validationLevel: 'strict',
+    validationAction: 'error'
+});
+
+db.getCollection('notifications').createIndex({ userId: 1, read: 1 });
+db.getCollection('notifications').createIndex({ userId: 1, createdAt: -1 });
 
 // ================================================================
 // Sample seed data — sanity check the validators end to end

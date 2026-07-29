@@ -28,7 +28,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     if (body.status === 'cancelled') {
       update.status = 'cancelled'
-      if (booking.deviceIds && booking.deviceIds.length > 0) {
+      const roomDoc = await db.collection('rooms').findOne({ _id: booking.roomId })
+      if (roomDoc?.type === 'private') {
+        // Free ALL devices in the room for private room bookings
+        const allRoomDevices = await db.collection('devices').find({ roomId: booking.roomId }).toArray()
+        const allDeviceIds = allRoomDevices.map((d) => d._id)
+        if (allDeviceIds.length > 0) {
+          await db.collection('devices').updateMany(
+            { _id: { $in: allDeviceIds } },
+            { $set: { status: 'available' } }
+          )
+        }
+      } else if (booking.deviceIds && booking.deviceIds.length > 0) {
         await db.collection('devices').updateMany(
           { _id: { $in: booking.deviceIds } },
           { $set: { status: 'available' } }

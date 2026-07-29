@@ -32,7 +32,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     // Reset devices to available
-    if (booking.deviceIds?.length > 0) {
+    const roomDoc = await db.collection('rooms').findOne({ _id: booking.roomId })
+    if (roomDoc?.type === 'private') {
+      const allRoomDevices = await db.collection('devices').find({ roomId: booking.roomId }).toArray()
+      const allDeviceIds = allRoomDevices.map((d) => d._id)
+      if (allDeviceIds.length > 0) {
+        await db.collection('devices').updateMany(
+          { _id: { $in: allDeviceIds } },
+          { $set: { status: 'available' } }
+        )
+      }
+    } else if (booking.deviceIds?.length > 0) {
       await db.collection('devices').updateMany(
         { _id: { $in: booking.deviceIds.map((id: ObjectId) => new ObjectId(id)) } },
         { $set: { status: 'available' } }
