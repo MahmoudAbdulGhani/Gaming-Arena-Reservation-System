@@ -7,14 +7,14 @@ import StatCard from './stat-card'
 import BookingCard from './booking-card'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import ModifyBookingModal from './modify-booking-modal'
-import type { Booking } from '@/lib/types'
-import { calculateLoyaltyPoints } from '@/lib/loyalty'
+import type { Booking, User } from '@/lib/types'
 
 // How many upcoming bookings to preview here before the user has to
 // click "View all" and go to the full Upcoming tab.
 const PREVIEW_COUNT = 2
 
 interface OverviewTabProps {
+  user: User | null
   // Lets the "View all" link jump straight to the Upcoming tab — the
   // active-tab state itself lives one level up, in dashboard-tabs.tsx.
   bookings: Booking[]
@@ -22,7 +22,7 @@ interface OverviewTabProps {
   onViewAllUpcoming?: () => void
 }
 
-export default function OverviewTab({ onUpdateBooking,onViewAllUpcoming, bookings }: OverviewTabProps) {
+export default function OverviewTab({ user, onUpdateBooking,onViewAllUpcoming, bookings }: OverviewTabProps) {
   const totalBookings = bookings.length
 
   const upcomingBookings = bookings.filter(
@@ -32,7 +32,11 @@ export default function OverviewTab({ onUpdateBooking,onViewAllUpcoming, booking
 
   const completedCount = bookings.filter((b) => b.status === 'completed').length
 
-  const loyaltyPoints = calculateLoyaltyPoints(bookings)
+  // The real, persisted loyalty total lives on the user record itself
+  // (incremented server-side whenever a card booking is made) — not
+  // recomputed from booking history, since bookings never actually
+  // reach a 'completed' status in the current system.
+  const loyaltyPoints = user?.loyaltyPoints ?? 0
 
   // Same Modify/Cancel wiring as upcoming-tab.tsx — this preview list
   // uses the same BookingCard, so it needs its own copy of this state

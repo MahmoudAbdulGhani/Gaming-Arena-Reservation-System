@@ -329,12 +329,12 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
           ) : isCard ? (
             <>
               <Lock className="w-4 h-4" aria-hidden="true" />
-              Pay ${totalPrice} &mdash; Confirm Booking
+              Pay ${totalPrice} &ndash; Confirm Booking
             </>
           ) : (
             <>
               <Banknote className="w-4 h-4" aria-hidden="true" />
-              Reserve &mdash; Pay ${totalPrice} Later
+              Reserve &ndash; Pay ${totalPrice} Later
             </>
           )}
         </button>

@@ -41,7 +41,7 @@ function BookingContent() {
 
   const matchedRoom = useMemo(() => preselectedRoom ? rooms.find(r => r._id === preselectedRoom) ?? null : null, [preselectedRoom, rooms])
 
-  const [currentStep, setCurrentStep] = useState(matchedRoom ? 2 : 1)
+  const [currentStep, setCurrentStep] = useState(preselectedRoom ? 2 : 1)
   const [isCompleted, setIsCompleted] = useState(false)
   const [bookingData, setBookingData] = useState<BookingData>({
     room: matchedRoom,
@@ -53,6 +53,12 @@ function BookingContent() {
     paymentMethod: 'card',
     targetUserId: forUserId,
   })
+
+  useEffect(() => {
+    if (matchedRoom && bookingData.room === null) {
+      setBookingData((prev) => ({ ...prev, room: matchedRoom }))
+    }
+  }, [matchedRoom])
 
   const handleStepComplete = (data: Partial<BookingData>) => {
     setBookingData((prev) => ({ ...prev, ...data }))

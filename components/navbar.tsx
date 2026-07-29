@@ -5,10 +5,12 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Gamepad2, LogOut, User, Menu, X, ExternalLink } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
+import BookLink from '@/components/book-link'
 
 const navLinks = [
   { label: 'Home', href: '/' },
   { label: 'Rooms', href: '/rooms' },
+  { label: 'Book Now', href: '/booking' },
   { label: 'Dashboard', href: '/dashboard' },
   { label: 'Contact', href: '/contact' },
 ]
@@ -95,6 +97,22 @@ export default function Navbar() {
                 {navLinks.map((link) => {
                   const href = link.label === 'Dashboard' && user?.role === 'admin' ? '/admin' : link.href
                   const isActive = pathname === href
+                  if (link.label === 'Book Now') {
+                    return (
+                      <li key={link.href}>
+                        <BookLink
+                          href={link.href}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                            isActive
+                              ? 'text-[#7C5CFF] bg-[#7C5CFF]/10'
+                              : 'text-[#9BA3B7] hover:text-[#F5F6FA] hover:bg-[#1B2130]'
+                          }`}
+                        >
+                          {link.label}
+                        </BookLink>
+                      </li>
+                    )
+                  }
                   return (
                     <li key={link.href}>
                       <Link
@@ -188,6 +206,22 @@ export default function Navbar() {
                   {navLinks.map((link) => {
                     const href = link.label === 'Dashboard' && user?.role === 'admin' ? '/admin' : link.href
                     const isActive = pathname === href
+                    if (link.label === 'Book Now') {
+                      return (
+                        <BookLink
+                          key={link.href}
+                          href={link.href}
+                          onClick={() => setMobileOpen(false)}
+                          className={`block px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            isActive
+                              ? 'text-[#7C5CFF] bg-[#7C5CFF]/10'
+                              : 'text-[#9BA3B7] hover:text-[#F5F6FA] hover:bg-[#1B2130]'
+                          }`}
+                        >
+                          {link.label}
+                        </BookLink>
+                      )
+                    }
                     return (
                       <Link
                         key={link.href}
