@@ -16,6 +16,8 @@ export default function ProfileTab({ user }: ProfileTabProps) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
     if (user) {
@@ -33,9 +35,29 @@ export default function ProfileTab({ user }: ProfileTabProps) {
     )
   }
 
-  function handleSave(e: FormEvent) {
+  async function handleSave(e: FormEvent) {
     e.preventDefault()
-    console.log('Saving profile (no backend yet):', { name, email, phone })
+    setSaving(true)
+    setMessage(null)
+
+    const token = localStorage.getItem('gz_token')
+    try {
+      const res = await fetch('/api/auth/me', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name, email, phone }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to save changes')
+      setMessage({ type: 'success', text: 'Profile updated.' })
+    } catch (err) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Something went wrong' })
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -91,11 +113,18 @@ export default function ProfileTab({ user }: ProfileTabProps) {
           />
         </div>
 
+        {message && (
+          <p className={`text-sm ${message.type === 'success' ? 'text-[#33E6A0]' : 'text-[#FF5C7A]'}`}>
+            {message.text}
+          </p>
+        )}
+
         <button
           type="submit"
-          className="w-full py-3 rounded-lg text-sm font-semibold text-white btn-primary-gradient glow-violet transition-all duration-200"
+          disabled={saving}
+          className="w-full py-3 rounded-lg text-sm font-semibold text-white btn-primary-gradient glow-violet transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          Save Changes
+          {saving ? 'Saving...' : 'Save Changes'}
         </button>
       </form>
     </div>
