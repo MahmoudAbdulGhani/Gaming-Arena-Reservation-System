@@ -3,6 +3,7 @@ import { Calendar, Clock, DollarSign, Monitor, Gamepad2, Glasses, Users, Cpu } f
 import type { Booking, BookingStatus, RoomType } from "@/lib/types";
 import { formatTime12 } from "@/lib/types";
 import { checkBookingPolicy } from '@/lib/booking-policy'
+import { getRoomPrimaryImage } from '@/lib/room-images'
 
 const typeIcons: Record<RoomType, React.ReactNode> = {
   pc: <Monitor className="w-3.5 h-3.5" />,
@@ -86,7 +87,7 @@ export default function BookingCard({ booking, onModify, onCancel }: BookingCard
         {/* Room thumbnail */}
         <div className="relative w-24 h-24 rounded-xl overflow-hidden shrink-0 bg-[#1B2130]">
           <Image
-            src={room?.images[0] || "/images/room-pc.png"}
+            src={getRoomPrimaryImage(room)}
             alt={room?.name ?? "Room"}
             fill
             className="object-cover"

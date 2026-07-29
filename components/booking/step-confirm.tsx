@@ -6,6 +6,7 @@ import { ChevronLeft, Lock, AlertCircle, CreditCard, Banknote, Clock } from 'luc
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import type { BookingData } from '@/app/booking/page'
 import { roomTypeLabels, formatTime12 } from '@/lib/types'
+import { getRoomPrimaryImage } from '@/lib/room-images'
 
 interface Props {
   bookingData: BookingData
@@ -146,7 +147,7 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
           </h3>
 
           <div className="relative h-32 rounded-xl overflow-hidden mb-4">
-            <Image src={room.images[0] || '/images/room-pc.png'} alt={room.name} fill className="object-cover" />
+            <Image src={getRoomPrimaryImage(room)} alt={room.name} fill className="object-cover" />
             <div className="absolute inset-0 bg-linear-to-t from-[#131824]/80 to-transparent" />
             <div className="absolute bottom-3 left-3">
               <p className="text-base font-bold text-[#F5F6FA]" style={{ fontFamily: 'var(--font-display)' }}>

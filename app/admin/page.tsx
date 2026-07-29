@@ -1,23 +1,12 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { Search, Plus, Pencil, Eye, Trash2, X, Download, Lock, AlertCircle, CreditCard, Banknote, CheckCircle2 } from 'lucide-react'
+import { Search, Plus, Pencil, Eye, Trash2, X, Download, AlertCircle, Banknote, CheckCircle2 } from 'lucide-react'
 import Navbar from '@/components/navbar'
 import type { Device, RoomType, User, Room, Booking } from '@/lib/types'
 import { formatTime12 } from '@/lib/types'
-import { CardElement, useStripe, useElements, Elements } from '@stripe/react-stripe-js'
-import { loadStripe } from '@stripe/stripe-js'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-
-let stripePromise: ReturnType<typeof loadStripe> | null = null
-function getStripe() {
-  if (!stripePromise) {
-    const key = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-    if (key) stripePromise = loadStripe(key)
-  }
-  return stripePromise
-}
 
 const typeColors: Record<RoomType, string> = {
   pc: '#7c6cf2',
@@ -305,107 +294,15 @@ interface DeviceFormData {
   status: string
 }
 
-function CardPaymentForm({ clientSecret, totalPrice, onComplete, onError }: { clientSecret: string; totalPrice: number; onComplete: () => void | Promise<void>; onError: (msg: string) => void }) {
-  const stripe = useStripe()
-  const elements = useElements()
-  const [processing, setProcessing] = useState(false)
-  const [cardComplete, setCardComplete] = useState(false)
-
-  async function handlePay() {
-    if (!stripe || !elements) return
-    setProcessing(true)
-    const card = elements.getElement(CardElement)
-    if (!card) { setProcessing(false); return }
-
-    const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-      payment_method: { card, billing_details: { name: 'Admin' } },
-    })
-
-    if (stripeError) {
-      onError(stripeError.message ?? 'Payment failed')
-      setProcessing(false)
-      return
-    }
-
-    if (paymentIntent?.status === 'succeeded') {
-      try {
-        await onComplete()
-      } catch {
-        // onComplete has its own error handling
-      }
-      setProcessing(false)
-    } else {
-      onError(paymentIntent ? `Payment ${paymentIntent.status}` : 'Payment failed')
-      setProcessing(false)
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Lock className="w-4 h-4 text-[#7c6cf2]" />
-        <span className="text-[14px] font-semibold text-[#f5f5f7]">Card Payment</span>
-      </div>
-      <div className="p-4 rounded-xl bg-[#0a0a0f] border border-[#23232f]">
-        <label className="block text-[12px] text-[#6b6b7b] mb-3">Card Details</label>
-        <CardElement
-          options={{
-            style: {
-              base: {
-                fontSize: '16px',
-                color: '#f5f5f7',
-                fontFamily: 'monospace',
-                '::placeholder': { color: '#6b6b7b' },
-              },
-              invalid: { color: '#f25c78' },
-            },
-            hidePostalCode: true,
-          }}
-          onChange={(e) => setCardComplete(e.complete)}
-        />
-      </div>
-      <div className="p-3 rounded-xl bg-[#7c6cf2]/10 border border-[#7c6cf2]/20">
-        <p className="text-[11px] text-[#9a9aab] leading-relaxed">
-          Test mode &ndash; use card <span className="font-mono">4242 4242 4242 4242</span>, any future date, any CVC.
-        </p>
-      </div>
-      <div className="flex items-center justify-between pt-2 border-t border-[#23232f]">
-        <span className="text-[14px] text-[#6b6b7b]">Total</span>
-        <span className="text-[20px] font-bold text-[#f5f5f7]">${totalPrice}</span>
-      </div>
-      <button
-        onClick={handlePay}
-        disabled={processing || !stripe || !cardComplete}
-        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-[10px] text-[14px] font-semibold text-white border-none cursor-pointer btn-primary-gradient glow-violet transition-all duration-200 disabled:opacity-60"
-      >
-        {processing ? (
-          <>
-            <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-            Processing...
-          </>
-        ) : (
-          <>
-            <Lock className="w-4 h-4" />
-            Pay ${totalPrice}
-          </>
-        )}
-      </button>
-    </div>
-  )
-}
-
-function AddReservationModal({ rooms, devices, users, onSave, onSuccess, onClose }: { rooms: Room[]; devices: Device[]; users: { _id: string; name: string; email: string; role: string }[]; onSave: (data: { userId: string; roomId: string; deviceIds: string[]; bookingDate: string; startTime: string; durationHours: number; totalPrice: number; paymentMethod: string }) => void; onSuccess?: () => void; onClose: () => void }) {
+function AddReservationModal({ rooms, devices, users, onSave, onClose }: { rooms: Room[]; devices: Device[]; users: { _id: string; name: string; email: string; role: string }[]; onSave: (data: { userId: string; roomId: string; deviceIds: string[]; bookingDate: string; startTime: string; durationHours: number; totalPrice: number; paymentMethod: string }) => void; onClose: () => void }) {
   const customers = users.filter((u) => u.role === 'customer')
   const [userId, setUserId] = useState(customers[0]?._id || '')
   const [roomId, setRoomId] = useState(rooms[0]?._id || '')
   const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0])
   const [startTime, setStartTime] = useState('10:00')
   const [durationHours, setDurationHours] = useState(2)
-  const [paymentMethod, setPaymentMethod] = useState('card')
+  const paymentMethod = 'cash'
   const [selectedDeviceIds, setSelectedDeviceIds] = useState<string[]>([])
-  const [step, setStep] = useState<'form' | 'payment'>('form')
-  const [clientSecret, setClientSecret] = useState('')
-  const [paymentError, setPaymentError] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const selectedRoom = rooms.find((r) => r._id === roomId)
   const roomDevices = devices.filter((d) => d.roomId === roomId && d.status === 'available')
@@ -416,93 +313,12 @@ function AddReservationModal({ rooms, devices, users, onSave, onSuccess, onClose
   }
 
   async function handleCreateReservation() {
-    if (paymentMethod === 'cash') {
-      onSave({ userId, roomId, deviceIds: selectedDeviceIds, bookingDate, startTime, durationHours, totalPrice, paymentMethod })
-      return
-    }
-
     setIsProcessing(true)
-    setPaymentError('')
     try {
-      const piRes = await fetch('/api/stripe/create-payment-intent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: Math.round(totalPrice * 100), currency: 'usd' }),
-      })
-      const pi = await piRes.json()
-      if (!piRes.ok) throw new Error(pi.error || 'Failed to create payment')
-
-      setClientSecret(pi.clientSecret)
-      setStep('payment')
-    } catch (err) {
-      setPaymentError(err instanceof Error ? err.message : 'Failed to create reservation')
+      onSave({ userId, roomId, deviceIds: selectedDeviceIds, bookingDate, startTime, durationHours, totalPrice, paymentMethod })
     } finally {
       setIsProcessing(false)
     }
-  }
-
-  if (step === 'payment') {
-    const stripe = getStripe()
-    if (!stripe) {
-      return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-          <div className="bg-[#12121a] border border-[#23232f] rounded-[16px] w-full max-w-sm mx-4 p-6 shadow-2xl">
-            <div className="text-center">
-              <AlertCircle className="w-10 h-10 text-[#f2a13c] mx-auto mb-3" />
-              <p className="text-[14px] text-[#9a9aab]">Stripe is not configured. Add your Stripe publishable key to .env.local</p>
-              <button onClick={onClose} className="mt-4 px-4 py-2 rounded-[8px] text-[13px] font-semibold text-white bg-[#7c6cf2] border-none cursor-pointer">Close</button>
-            </div>
-          </div>
-        </div>
-      )
-    }
-
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-        <div className="bg-[#12121a] border border-[#23232f] rounded-[16px] w-full max-w-sm mx-4 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>Complete Payment</h3>
-            <button onClick={onClose} className="p-1.5 rounded-[8px] text-[#6b6b7b] hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          <Elements stripe={stripe}>
-            <CardPaymentForm clientSecret={clientSecret} totalPrice={totalPrice} onComplete={async () => {
-              try {
-                const token = localStorage.getItem('gz_token')
-                const res = await fetch('/api/admin/bookings', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { authorization: `Bearer ${token}` } : {}),
-                  },
-                  body: JSON.stringify({ userId, roomId, deviceIds: selectedDeviceIds, bookingDate, startTime, durationHours, totalPrice, paymentMethod: 'card' }),
-                })
-                const booking = await res.json()
-                if (!res.ok) throw new Error(booking.error || 'Failed to create booking')
-                await fetch(`/api/admin/bookings/${booking._id}/approve-cash`, {
-                  method: 'PATCH',
-                  headers: token ? { authorization: `Bearer ${token}` } : {},
-                })
-                onSuccess?.()
-                onClose()
-              } catch (err) {
-                setPaymentError(err instanceof Error ? err.message : 'Payment succeeded but failed to create booking')
-                setStep('form')
-              }
-            }} onError={(msg) => setPaymentError(msg)} />
-          </Elements>
-          {paymentError && (
-            <div className="mt-3 p-3 rounded-xl bg-[#f25c78]/10 border border-[#f25c78]/20">
-              <p className="text-[12px] text-[#f25c78] flex items-center gap-1.5">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                {paymentError}
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -587,29 +403,11 @@ function AddReservationModal({ rooms, devices, users, onSave, onSuccess, onClose
           </div>
           <div>
             <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Payment Method</label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setPaymentMethod('card')}
-                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-[10px] text-[13px] font-semibold transition-all border ${
-                  paymentMethod === 'card'
-                    ? 'bg-[#7c6cf2]/15 border-[#7c6cf2] text-[#7c6cf2]'
-                    : 'bg-[#0a0a0f] border-[#23232f] text-[#6b6b7b] hover:border-[#7c6cf2]/40'
-                }`}
-              >
-                <CreditCard className="w-4 h-4" />
-                Card
-              </button>
-              <button
-                onClick={() => setPaymentMethod('cash')}
-                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-[10px] text-[13px] font-semibold transition-all border ${
-                  paymentMethod === 'cash'
-                    ? 'bg-[#2fd18f]/15 border-[#2fd18f] text-[#2fd18f]'
-                    : 'bg-[#0a0a0f] border-[#23232f] text-[#6b6b7b] hover:border-[#2fd18f]/40'
-                }`}
-              >
+            <div className="grid grid-cols-1 gap-2">
+              <div className="flex items-center justify-center gap-2 px-4 py-3 rounded-[10px] text-[13px] font-semibold transition-all border bg-[#2fd18f]/15 border-[#2fd18f] text-[#2fd18f]">
                 <Banknote className="w-4 h-4" />
                 Cash
-              </button>
+              </div>
             </div>
           </div>
           <div className="pt-2 border-t border-[#23232f]">
@@ -617,18 +415,8 @@ function AddReservationModal({ rooms, devices, users, onSave, onSuccess, onClose
               <span className="text-[14px] text-[#6b6b7b]">Total Price</span>
               <span className="text-[18px] font-bold text-[#f5f5f7]">${totalPrice}</span>
             </div>
-            {paymentMethod === 'cash' && (
-              <p className="text-[11px] text-[#f2a13c] mt-1">Booking will be pending until cash payment is confirmed at the venue.</p>
-            )}
+            <p className="text-[11px] text-[#f2a13c] mt-1">Booking will be pending until cash payment is confirmed at the venue.</p>
           </div>
-          {paymentError && (
-            <div className="p-3 rounded-xl bg-[#f25c78]/10 border border-[#f25c78]/20">
-              <p className="text-[12px] text-[#f25c78] flex items-center gap-1.5">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                {paymentError}
-              </p>
-            </div>
-          )}
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-[#9a9aab] border border-[#23232f] bg-transparent hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer">
               Cancel
@@ -642,11 +430,6 @@ function AddReservationModal({ rooms, devices, users, onSave, onSuccess, onClose
                 <>
                   <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                   Processing...
-                </>
-              ) : paymentMethod === 'card' ? (
-                <>
-                  <Lock className="w-4 h-4" />
-                  Continue to Payment
                 </>
               ) : (
                 'Create Reservation'
@@ -2352,7 +2135,7 @@ export default function AdminPage() {
         )}
       </div>
       {showAddRoom && <AddRoomModal onSave={handleAddRoom} onClose={() => setShowAddRoom(false)} />}
-      {showAddReservation && <AddReservationModal rooms={rooms} devices={devices} users={users} onSave={handleAddReservation} onSuccess={() => { setFeedback({ type: 'success', message: 'Reservation created and payment successful' }); setShowAddReservation(false); fetchData() }} onClose={() => setShowAddReservation(false)} />}
+      {showAddReservation && <AddReservationModal rooms={rooms} devices={devices} users={users} onSave={handleAddReservation} onClose={() => setShowAddReservation(false)} />}
       {confirmModal && <ConfirmModal title={confirmModal.title ?? 'Confirm'} message={confirmModal.message} confirmText={confirmModal.confirmText ?? 'Confirm'} confirmButtonClassName={confirmModal.confirmButtonClassName} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(null)} />}
       {refundModal?.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => { setRefundModal(null); setRefundReason('') }}>
