@@ -277,144 +277,6 @@ interface DeviceFormData {
   status: string
 }
 
-function AddDeviceModal({ rooms, onSave, onClose }: { rooms: Room[]; onSave: (data: DeviceFormData) => void; onClose: () => void }) {
-  const [roomId, setRoomId] = useState(rooms[0]?._id || '')
-  const [deviceLabel, setDeviceLabel] = useState('')
-  const [specs, setSpecs] = useState('')
-  const [status, setStatus] = useState('available')
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-[#12121a] border border-[#23232f] rounded-[16px] w-full max-w-sm mx-4 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>Add Device</h3>
-          <button onClick={onClose} className="p-1.5 rounded-[8px] text-[#6b6b7b] hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Room</label>
-            <select
-              value={roomId}
-              onChange={(e) => setRoomId(e.target.value)}
-              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer"
-            >
-              {rooms.map((r) => <option key={r._id} value={r._id}>{r.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Device Label</label>
-            <input
-              type="text"
-              value={deviceLabel}
-              onChange={(e) => setDeviceLabel(e.target.value)}
-              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors"
-            />
-          </div>
-          <div>
-            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Specs</label>
-            <input
-              type="text"
-              value={specs}
-              onChange={(e) => setSpecs(e.target.value)}
-              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors"
-            />
-          </div>
-          <div>
-            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Status</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as 'available' | 'booked' | 'maintenance')}
-              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer"
-            >
-              <option value="available">Available</option>
-              <option value="booked">Booked</option>
-              <option value="maintenance">Maintenance</option>
-            </select>
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-[#9a9aab] border border-[#23232f] bg-transparent hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer">
-              Cancel
-            </button>
-            <button
-              onClick={() => onSave({ roomId, deviceLabel, specs, status })}
-              className="flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-white border-none cursor-pointer btn-primary-gradient glow-violet transition-all duration-200"
-            >
-              Add Device
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function EditDeviceModal({ device, rooms, onSave, onClose }: { device: Device; rooms: Room[]; onSave: (id: string, data: DeviceFormData) => void; onClose: () => void }) {
-  const [deviceLabel, setDeviceLabel] = useState(device.deviceLabel)
-  const [specs, setSpecs] = useState(device.specs)
-  const [status, setStatus] = useState(device.status)
-  const room = rooms.find((r) => r._id === device.roomId)
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-[#12121a] border border-[#23232f] rounded-[16px] w-full max-w-sm mx-4 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-[18px] font-bold text-[#f5f5f7] m-0" style={{ fontFamily: 'var(--font-display)' }}>Edit Device</h3>
-          <button onClick={onClose} className="p-1.5 rounded-[8px] text-[#6b6b7b] hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Room</label>
-            <div className="bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#6b6b7b]">{room?.name || 'Unknown'}</div>
-          </div>
-          <div>
-            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Device Label</label>
-            <input
-              type="text"
-              value={deviceLabel}
-              onChange={(e) => setDeviceLabel(e.target.value)}
-              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors"
-            />
-          </div>
-          <div>
-            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Specs</label>
-            <input
-              type="text"
-              value={specs}
-              onChange={(e) => setSpecs(e.target.value)}
-              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors"
-            />
-          </div>
-          <div>
-            <label className="block text-[13px] text-[#6b6b7b] mb-1.5">Status</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as 'available' | 'booked' | 'maintenance')}
-              className="w-full bg-[#0a0a0f] border border-[#23232f] rounded-[8px] px-4 py-2 text-[14px] text-[#f5f5f7] focus:outline-none focus:border-[#7c6cf2] transition-colors appearance-none cursor-pointer"
-            >
-              <option value="available">Available</option>
-              <option value="booked">Booked</option>
-              <option value="maintenance">Maintenance</option>
-            </select>
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-[#9a9aab] border border-[#23232f] bg-transparent hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer">
-              Cancel
-            </button>
-            <button
-              onClick={() => onSave(device._id, { roomId: device.roomId, deviceLabel, specs, status })}
-              className="flex-1 px-4 py-2.5 rounded-[8px] text-[13px] font-semibold text-white border-none cursor-pointer btn-primary-gradient glow-violet transition-all duration-200"
-            >
-              Save
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function CardPaymentForm({ clientSecret, totalPrice, onComplete, onError }: { clientSecret: string; totalPrice: number; onComplete: () => void | Promise<void>; onError: (msg: string) => void }) {
   const stripe = useStripe()
   const elements = useElements()
@@ -983,7 +845,7 @@ export default function AdminPage() {
   const [detailModal, setDetailModal] = useState<{ open: boolean; title: string; details: DetailItem[] }>({ open: false, title: '', details: [] })
   const [roomsData, setRoomsData] = useState<Room[]>([])
   const [editingRoom, setEditingRoom] = useState<{ id: string; name: string; pricePerHour: number; type: string; images: string; status: string } | null>(null)
-  const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null)
+  const [confirmModal, setConfirmModal] = useState<{ title?: string; message: string; confirmText?: string; confirmButtonClassName?: string; onConfirm: () => void } | null>(null)
   const [showAddRoom, setShowAddRoom] = useState(false)
   const [showAddDevice, setShowAddDevice] = useState(false)
   const [editingDevice, setEditingDevice] = useState<Device | null>(null)
@@ -2240,7 +2102,7 @@ export default function AdminPage() {
       </div>
       {showAddRoom && <AddRoomModal onSave={handleAddRoom} onClose={() => setShowAddRoom(false)} />}
       {showAddReservation && <AddReservationModal rooms={rooms} devices={devices} users={users} onSave={handleAddReservation} onSuccess={() => { setFeedback({ type: 'success', message: 'Reservation created and payment successful' }); setShowAddReservation(false); fetchData() }} onClose={() => setShowAddReservation(false)} />}
-      {confirmModal && <ConfirmModal title="Confirm" message={confirmModal.message} confirmText="Confirm" onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(null)} />}
+      {confirmModal && <ConfirmModal title={confirmModal.title ?? 'Confirm'} message={confirmModal.message} confirmText={confirmModal.confirmText ?? 'Confirm'} confirmButtonClassName={confirmModal.confirmButtonClassName} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(null)} />}
       {editingRoom && <RoomEditModal room={editingRoom} onSave={handleEditRoom} onClose={() => setEditingRoom(null)} />}
       <DetailModal open={detailModal.open} onClose={() => setDetailModal({ open: false, title: '', details: [] })} title={detailModal.title} details={detailModal.details} />
     </div>
