@@ -75,6 +75,7 @@ export interface Booking {
   paymentMethod?: string
   paymentId?: string
   confirmationMessage?: string
+  cancellationReason?: string
   createdAt: string
   updatedAt: string
 }

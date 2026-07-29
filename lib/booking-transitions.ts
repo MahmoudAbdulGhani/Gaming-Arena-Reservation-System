@@ -5,11 +5,13 @@ export async function transitionAndFreeDevices(db: Db): Promise<void> {
     const now = new Date()
     const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 
+    const today = new Date(now.toISOString().split('T')[0])
+
     // confirmed → in_progress (devices stay booked — session active)
     await db.collection('bookings').updateMany(
       {
         status: 'confirmed',
-        bookingDate: { $lte: new Date(now.toISOString().split('T')[0]) },
+        bookingDate: { $lte: today },
         startTime: { $lte: currentTime },
         endTime: { $gte: currentTime },
       },
@@ -18,6 +20,7 @@ export async function transitionAndFreeDevices(db: Db): Promise<void> {
 
     const toComplete = await db.collection('bookings').find({
       status: { $in: ['confirmed', 'in_progress'] },
+      bookingDate: { $lte: today },
       endTime: { $lt: currentTime },
     }).toArray()
 

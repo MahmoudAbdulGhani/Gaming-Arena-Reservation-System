@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth'
 import { getDb } from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
+import { formatTime12 } from '@/lib/types'
 
 export async function GET(request: Request) {
   try {
@@ -46,7 +47,7 @@ export async function GET(request: Request) {
           bookingId: booking._id,
           type: 'reminder',
           title: 'Booking Reminder',
-          message: `Your session at ${room?.name || 'the arena'} starts at ${booking.startTime} today!`,
+          message: `Your session at ${room?.name || 'the arena'} starts at ${formatTime12(booking.startTime)} today!`,
           read: false,
           createdAt: new Date(),
         })

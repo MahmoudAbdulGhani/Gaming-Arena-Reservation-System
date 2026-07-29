@@ -1006,6 +1006,10 @@ export default function AdminPage() {
   const [roomsData, setRoomsData] = useState<Room[]>([])
   const [editingRoom, setEditingRoom] = useState<{ id: string; name: string; pricePerHour: number; type: string; images: string; status: string } | null>(null)
   const [confirmModal, setConfirmModal] = useState<{ title?: string; message: string; confirmText?: string; confirmButtonClassName?: string; onConfirm: () => void } | null>(null)
+  const [refundModal, setRefundModal] = useState<{ bookingId: string; open: boolean } | null>(null)
+  const [refundReason, setRefundReason] = useState('')
+  const [cancelModal, setCancelModal] = useState<{ bookingId: string; open: boolean } | null>(null)
+  const [cancelReason, setCancelReason] = useState('')
   const [showAddRoom, setShowAddRoom] = useState(false)
   const [showAddDevice, setShowAddDevice] = useState(false)
   const [editingDevice, setEditingDevice] = useState<Device | null>(null)
@@ -1165,10 +1169,14 @@ export default function AdminPage() {
     }
   }, [fetchData])
 
-  const handleRefund = useCallback(async (id: string) => {
-    setConfirmModal(null)
+  const handleRefund = useCallback(async (id: string, reason: string) => {
+    setRefundModal(null)
+    setRefundReason('')
     try {
-      await apiFetch(`/api/admin/bookings/${id}/refund`, { method: 'PATCH' })
+      await apiFetch(`/api/admin/bookings/${id}/refund`, {
+        method: 'PATCH',
+        body: JSON.stringify({ reason }),
+      })
       setFeedback({ type: 'success', message: 'Booking refunded successfully' })
       await fetchData()
     } catch (err) {
@@ -1176,14 +1184,19 @@ export default function AdminPage() {
     }
   }, [fetchData])
 
-  const handleDeleteBooking = useCallback(async (id: string) => {
+  const handleCancelBooking = useCallback(async (id: string, reason: string) => {
+    setCancelModal(null)
+    setCancelReason('')
     try {
-      await apiFetch(`/api/admin/bookings/${id}`, { method: 'DELETE' })
-      setFeedback({ type: 'success', message: 'Booking deleted successfully' })
-      setConfirmModal(null)
+      await apiFetch(`/api/admin/bookings/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'cancelled', cancellationReason: reason }),
+      })
+      setDeletedBookingIds((prev) => [...prev, id])
+      setFeedback({ type: 'success', message: 'Booking cancelled successfully' })
       await fetchData()
     } catch (err) {
-      setFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Failed to delete booking' })
+      setFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Failed to cancel booking' })
     }
   }, [fetchData])
 
@@ -1339,6 +1352,8 @@ export default function AdminPage() {
     const q = roomSearch.toLowerCase()
     return r.name.toLowerCase().includes(q) || r.type.toLowerCase().includes(q)
   })
+
+  const filteredDevices = devices
 
   const tabs = [
     { id: 'overview', label: 'Overview', badge: null },
@@ -1626,15 +1641,18 @@ export default function AdminPage() {
                             )}
                             {b.paymentStatus === 'paid' && b.paymentMethod === 'card' && (
                               <button
-                                onClick={() => {
-                                  setConfirmModal({
-                                    message: `Refund booking ${getDisplayId(b._id)}? This will cancel the booking and refund the card payment.`,
-                                    onConfirm: () => handleRefund(b._id),
-                                  })
-                                }}
+                                onClick={() => setRefundModal({ bookingId: b._id, open: true })}
                                 className="px-2 py-1 rounded-[6px] text-[11px] font-semibold text-[#f25c78] bg-[#f25c78]/10 hover:bg-[#f25c78]/20 transition-all cursor-pointer border-none"
                               >
                                 Refund
+                              </button>
+                            )}
+                            {b.status !== 'cancelled' && (
+                              <button
+                                onClick={() => setCancelModal({ bookingId: b._id, open: true })}
+                                className="px-2 py-1 rounded-[6px] text-[11px] font-semibold text-[#f2a13c] bg-[#f2a13c]/10 hover:bg-[#f2a13c]/20 transition-all cursor-pointer border-none"
+                              >
+                                Cancel
                               </button>
                             )}
                             <button
@@ -1673,18 +1691,6 @@ export default function AdminPage() {
                               className="p-1.5 rounded-[6px] text-[#9a9aab] hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent"
                             >
                               <Eye className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => setConfirmModal({
-                                title: 'Confirm Delete',
-                                message: `Are you sure you want to delete booking ${getDisplayId(b._id)}? This action cannot be undone.`,
-                                confirmText: 'Delete',
-                                confirmButtonClassName: 'bg-[#f25c78] hover:bg-[#d94e6a]',
-                                onConfirm: () => handleDeleteBooking(b._id),
-                              })}
-                              className="p-1.5 rounded-[6px] text-[#f25c78]/60 hover:text-[#f25c78] hover:bg-[#f25c78]/10 transition-all cursor-pointer border-none bg-transparent"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </td>
@@ -1782,15 +1788,18 @@ export default function AdminPage() {
                         )}
                         {b.paymentStatus === 'paid' && b.paymentMethod === 'card' && (
                           <button
-                            onClick={() => {
-                              setConfirmModal({
-                                message: `Refund booking ${getDisplayId(b._id)}? This will cancel the booking and refund the card payment.`,
-                                onConfirm: () => handleRefund(b._id),
-                              })
-                            }}
+                            onClick={() => setRefundModal({ bookingId: b._id, open: true })}
                             className="px-2 py-1 rounded-[6px] text-[11px] font-semibold text-[#f25c78] bg-[#f25c78]/10 hover:bg-[#f25c78]/20 transition-all cursor-pointer border-none"
                           >
                             Refund
+                          </button>
+                        )}
+                        {b.status !== 'cancelled' && (
+                          <button
+                            onClick={() => setCancelModal({ bookingId: b._id, open: true })}
+                            className="px-2 py-1 rounded-[6px] text-[11px] font-semibold text-[#f2a13c] bg-[#f2a13c]/10 hover:bg-[#f2a13c]/20 transition-all cursor-pointer border-none"
+                          >
+                            Cancel
                           </button>
                         )}
                         <button
@@ -1814,12 +1823,6 @@ export default function AdminPage() {
                           className="p-1.5 rounded-[6px] text-[#9a9aab] hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent"
                         >
                           <Eye className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setConfirmModal({ message: `Are you sure you want to delete booking ${getDisplayId(b._id)}? This action cannot be undone.`, onConfirm: () => { setDeletedBookingIds((prev) => [...prev, b._id]); setConfirmModal(null) } })}
-                          className="p-1.5 rounded-[6px] text-[#f25c78]/60 hover:text-[#f25c78] hover:bg-[#f25c78]/10 transition-all cursor-pointer border-none bg-transparent"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -2060,7 +2063,7 @@ export default function AdminPage() {
                           {d.status.charAt(0).toUpperCase() + d.status.slice(1)}
                         </span>
                         <button
-                          onClick={() => setEditingDevice({ _id: d._id, roomId: d.roomId, deviceLabel: d.deviceLabel, specs: d.specs ?? '', status: d.status })}
+                          onClick={() => setEditingDevice(d)}
                           className="p-1.5 rounded-[6px] text-[#9a9aab] hover:text-[#f5f5f7] hover:bg-[#23232f] transition-all cursor-pointer border-none bg-transparent"
                         >
                           <Pencil className="w-3.5 h-3.5" />
@@ -2351,6 +2354,44 @@ export default function AdminPage() {
       {showAddRoom && <AddRoomModal onSave={handleAddRoom} onClose={() => setShowAddRoom(false)} />}
       {showAddReservation && <AddReservationModal rooms={rooms} devices={devices} users={users} onSave={handleAddReservation} onSuccess={() => { setFeedback({ type: 'success', message: 'Reservation created and payment successful' }); setShowAddReservation(false); fetchData() }} onClose={() => setShowAddReservation(false)} />}
       {confirmModal && <ConfirmModal title={confirmModal.title ?? 'Confirm'} message={confirmModal.message} confirmText={confirmModal.confirmText ?? 'Confirm'} confirmButtonClassName={confirmModal.confirmButtonClassName} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(null)} />}
+      {refundModal?.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => { setRefundModal(null); setRefundReason('') }}>
+          <div className="bg-[#131824] border border-[#262D3D] rounded-2xl p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-[#F5F6FA]" style={{ fontFamily: 'var(--font-display)' }}>Refund Reason</h3>
+            <p className="text-sm text-[#9BA3B7] mt-2">Please provide a reason for the refund:</p>
+            <textarea
+              value={refundReason}
+              onChange={(e) => setRefundReason(e.target.value)}
+              placeholder="Enter refund reason..."
+              className="w-full mt-3 px-3 py-2 rounded-lg text-sm bg-[#1B2130] border border-[#262D3D] text-[#F5F6FA] placeholder-[#6b6b7b] resize-none outline-none focus:border-[#3B82F6]"
+              rows={3}
+            />
+            <div className="flex items-center justify-end gap-3 mt-6">
+              <button type="button" onClick={() => { setRefundModal(null); setRefundReason('') }} className="px-5 py-2 rounded-lg text-sm font-medium text-[#F5F6FA] border border-[#262D3D] hover:bg-[#1B2130] transition-colors duration-200">Cancel</button>
+              <button type="button" onClick={() => handleRefund(refundModal.bookingId, refundReason)} disabled={!refundReason.trim()} className="px-5 py-2 rounded-lg text-sm font-semibold text-white bg-[#FF5C7A] hover:bg-[#FF5C7A]/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-200">Refund</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {cancelModal?.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => { setCancelModal(null); setCancelReason('') }}>
+          <div className="bg-[#131824] border border-[#262D3D] rounded-2xl p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-[#F5F6FA]" style={{ fontFamily: 'var(--font-display)' }}>Cancel Booking</h3>
+            <p className="text-sm text-[#9BA3B7] mt-2">Are you sure you want to cancel this booking? This will free the devices and mark the booking as cancelled.</p>
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Reason for cancellation (optional)"
+              className="w-full mt-3 px-3 py-2 rounded-lg text-sm bg-[#1B2130] border border-[#262D3D] text-[#F5F6FA] placeholder-[#6b6b7b] resize-none outline-none focus:border-[#3B82F6]"
+              rows={2}
+            />
+            <div className="flex items-center justify-end gap-3 mt-6">
+              <button type="button" onClick={() => { setCancelModal(null); setCancelReason('') }} className="px-5 py-2 rounded-lg text-sm font-medium text-[#F5F6FA] border border-[#262D3D] hover:bg-[#1B2130] transition-colors duration-200">Go back</button>
+              <button type="button" onClick={() => handleCancelBooking(cancelModal.bookingId, cancelReason)} className="px-5 py-2 rounded-lg text-sm font-semibold text-white bg-[#f2a13c] hover:bg-[#d98c2e] transition-colors duration-200">Cancel Booking</button>
+            </div>
+          </div>
+        </div>
+      )}
       {editingRoom && <RoomEditModal room={editingRoom} onSave={handleEditRoom} onClose={() => setEditingRoom(null)} />}
       {managingRoom && (
         <ManageRoomModal

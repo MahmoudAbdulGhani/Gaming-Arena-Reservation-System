@@ -28,9 +28,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     if (body.status === 'cancelled') {
       update.status = 'cancelled'
+      if (body.cancellationReason) update.cancellationReason = body.cancellationReason
       const roomDoc = await db.collection('rooms').findOne({ _id: booking.roomId })
       if (roomDoc?.type === 'private') {
-        // Free ALL devices in the room for private room bookings
         const allRoomDevices = await db.collection('devices').find({ roomId: booking.roomId }).toArray()
         const allDeviceIds = allRoomDevices.map((d) => d._id)
         if (allDeviceIds.length > 0) {
@@ -44,6 +44,24 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           { _id: { $in: booking.deviceIds } },
           { $set: { status: 'available' } }
         )
+      }
+
+      const user = await db.collection('users').findOne({ _id: new ObjectId(payload.userId) })
+      if (user) {
+        const admins = await db.collection('users').find({ role: 'admin' }).toArray()
+        const code = booking._id.toString().slice(-6).toUpperCase()
+        const adminNotifications = admins.map((admin) => ({
+          userId: admin._id,
+          bookingId: booking._id,
+          type: 'info' as const,
+          title: 'Booking Cancelled',
+          message: `${user.name} cancelled booking ${code} (${roomDoc?.name || 'Unknown Room'})`,
+          read: false,
+          createdAt: new Date(),
+        }))
+        if (adminNotifications.length > 0) {
+          await db.collection('notifications').insertMany(adminNotifications)
+        }
       }
     }
 

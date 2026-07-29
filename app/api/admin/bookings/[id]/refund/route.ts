@@ -17,6 +17,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ error: 'Only paid bookings can be refunded' }, { status: 400 })
     }
 
+    const body = await request.json().catch(() => ({}))
+    const reason = body.reason || 'No reason provided'
+
     const now = new Date()
 
     // Attempt Stripe refund for card payments
@@ -85,10 +88,23 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         $set: {
           paymentStatus: 'refunded',
           status: 'cancelled',
+          cancellationReason: reason,
           updatedAt: now,
         },
       }
     )
+
+    const code = booking._id.toString().slice(-6).toUpperCase()
+    const roomDocName = roomDoc?.name || 'Unknown Room'
+    await db.collection('notifications').insertOne({
+      userId: booking.userId,
+      bookingId: oid,
+      type: 'info',
+      title: 'Booking Refunded',
+      message: `Your booking ${code} at ${roomDocName} has been refunded. Reason: ${reason}`,
+      read: false,
+      createdAt: now,
+    })
 
     const updated = await db.collection('bookings').findOne({ _id: oid })
     return NextResponse.json(toJSON(updated!))

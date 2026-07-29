@@ -3,6 +3,7 @@ import { getDb } from '@/lib/mongodb'
 import { verifyToken } from '@/lib/auth'
 import { errorResponse, toJSON } from '@/lib/admin-helper'
 import { ObjectId } from 'mongodb'
+import { formatTime12 } from '@/lib/types'
 
 export async function POST(request: Request) {
   try {
@@ -107,7 +108,7 @@ export async function POST(request: Request) {
         bookingId: result.insertedId,
         type: 'info',
         title: 'New Booking',
-        message: `${bookingUser.name} booked ${room?.name || 'a room'} on ${bookingDate} at ${startTime} (${durationHours}h, $${totalPrice})`,
+        message: `${bookingUser.name} booked ${room?.name || 'a room'} on ${bookingDate} at ${formatTime12(startTime)} (${durationHours}h, $${totalPrice})`,
         read: false,
         createdAt: new Date(),
       }))
