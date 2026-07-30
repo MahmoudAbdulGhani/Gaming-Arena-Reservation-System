@@ -66,12 +66,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
     )
 
-    if (shouldGrantLoyalty) {
-      await db.collection('users').updateOne(
-        { _id: booking.userId },
-        { $inc: { loyaltyPoints: 10 } }
-      )
-    }
+    await db.collection('users').updateOne(
+      { _id: booking.userId },
+      { $inc: { loyaltyPoints: 10 } }
+    )
 
     const updated = await db.collection('bookings').findOne({ _id: oid })
     return NextResponse.json(toJSON(updated!))

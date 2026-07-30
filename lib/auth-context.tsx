@@ -12,6 +12,7 @@ interface AuthContextType {
   verifyOtp: (token: string, otp: string) => Promise<string>
   resendOtp: (token: string) => Promise<string>
   logout: () => void
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -109,13 +110,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data.verifyToken
   }
 
+  const refreshUser = useCallback(async () => {
+    const token = getStoredToken()
+    if (!token) return
+    const res = await fetch('/api/auth/me', {
+      headers: { authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const data = await res.json()
+      setUser(data.user)
+    }
+  }, [])
+
   function logout() {
     clearToken()
     setUser(null)
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, verifyOtp, resendOtp, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, verifyOtp, resendOtp, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )
