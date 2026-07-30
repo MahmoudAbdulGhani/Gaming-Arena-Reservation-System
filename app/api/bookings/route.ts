@@ -93,7 +93,7 @@ export async function POST(request: Request) {
     if (paymentMethod !== 'cash') {
       await db.collection('users').updateOne(
         { _id: new ObjectId(payload.userId) },
-        { $inc: { loyaltyPoints: 10 } }
+        { $inc: { loyaltyPoints: 10 * durationHours } }
       )
     }
 

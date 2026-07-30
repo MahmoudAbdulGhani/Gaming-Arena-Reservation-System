@@ -7,6 +7,7 @@ import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import type { BookingData } from '@/app/booking/page'
 import { roomTypeLabels, formatTime12 } from '@/lib/types'
 import { getRoomPrimaryImage } from '@/lib/room-images'
+import { useAuth } from '@/lib/auth-context'
 
 interface Props {
   bookingData: BookingData
@@ -34,6 +35,7 @@ const cardElementStyle = {
 export default function BookingStepConfirm({ bookingData, onComplete, onBack }: Props) {
   const stripe = useStripe()
   const elements = useElements()
+  const { refreshUser } = useAuth()
 
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash'>(bookingData.paymentMethod)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
@@ -75,6 +77,7 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
       if (paymentMethod === 'cash') {
         await saveBooking('cash')
         onComplete({ paymentMethod: 'cash' })
+        refreshUser()
         return
       }
 
@@ -114,6 +117,7 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
 
       await saveBooking('card')
       onComplete({ paymentMethod: 'card' })
+      refreshUser()
     } catch (err) {
       setPaymentError(err instanceof Error ? err.message : 'Payment failed')
     } finally {

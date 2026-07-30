@@ -41,7 +41,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     await db.collection('users').updateOne(
       { _id: booking.userId },
-      { $inc: { loyaltyPoints: 10 } }
+      { $inc: { loyaltyPoints: 10 * booking.durationHours } }
     )
 
     const updated = await db.collection('bookings').findOne({ _id: oid })
