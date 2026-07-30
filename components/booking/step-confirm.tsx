@@ -185,7 +185,10 @@ export default function BookingStepConfirm({ bookingData, onComplete, onBack }: 
             {[
               {
                 label: 'Date',
-                value: new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+                value: (() => {
+                  const [y, m, d] = date.split('-').map(Number)
+                  return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+                })(),
               },
               { label: 'Time', value: `${formatTime12(startTime)} – ${formatTime12(endTime)}` },
               { label: 'Duration', value: `${durationHours} hour${durationHours > 1 ? 's' : ''}` },

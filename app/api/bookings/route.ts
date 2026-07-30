@@ -35,20 +35,18 @@ export async function POST(request: Request) {
       finalDeviceCount = allRoomDevices.length
     }
 
-    // Server-side conflict check: ensure none of the requested devices
-    // are already booked in an overlapping time slot
-    if (finalDeviceIds.length > 0) {
-      const conflicting = await db.collection('bookings').findOne({
-        roomId: new ObjectId(roomId),
-        bookingDate: new Date(bookingDate),
-        status: { $in: ['pending', 'confirmed', 'in_progress'] },
-        startTime: { $lt: endTime },
-        endTime: { $gt: startTime },
-        deviceIds: { $in: finalDeviceIds },
-      })
-      if (conflicting) {
-        return NextResponse.json({ error: 'One or more devices are already booked for this time slot' }, { status: 409 })
-      }
+    // Server-side conflict check: ensure no overlapping booking exists
+    // for this room during the requested time slot
+    const conflicting = await db.collection('bookings').findOne({
+      roomId: new ObjectId(roomId),
+      bookingDate: new Date(bookingDate),
+      status: { $in: ['pending', 'confirmed', 'in_progress'] },
+      startTime: { $lt: endTime },
+      endTime: { $gt: startTime },
+      ...(isPrivate ? {} : { deviceIds: { $in: finalDeviceIds } }),
+    })
+    if (conflicting) {
+      return NextResponse.json({ error: 'This time slot is already booked' }, { status: 409 })
     }
 
     const booking = {
