@@ -13,19 +13,46 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
     }
 
-    const now = new Date()
-    const paymentDoc = {
-      bookingId: oid,
-      userId: booking.userId,
-      amount: booking.totalPrice,
-      currency: 'usd',
-      paymentMethod: 'cash',
-      status: 'completed',
-      createdAt: now,
-      updatedAt: now,
+    if (booking.paymentMethod && booking.paymentMethod !== 'cash') {
+      return NextResponse.json({ error: 'Only cash bookings can be approved from this action' }, { status: 400 })
     }
 
-    const paymentResult = await db.collection('payments').insertOne(paymentDoc)
+    if (booking.paymentStatus === 'paid' && booking.status === 'confirmed') {
+      return NextResponse.json(toJSON(booking))
+    }
+
+    const now = new Date()
+    const shouldGrantLoyalty = booking.paymentStatus !== 'paid'
+    const existingPayment = await db.collection('payments').findOne({ bookingId: oid })
+    let paymentId = existingPayment?._id
+
+    if (existingPayment) {
+      await db.collection('payments').updateOne(
+        { _id: existingPayment._id },
+        {
+          $set: {
+            amount: booking.totalPrice,
+            currency: 'usd',
+            paymentMethod: 'cash',
+            status: 'completed',
+            updatedAt: now,
+          },
+        }
+      )
+    } else {
+      const paymentDoc = {
+        bookingId: oid,
+        userId: booking.userId,
+        amount: booking.totalPrice,
+        currency: 'usd',
+        paymentMethod: 'cash',
+        status: 'completed',
+        createdAt: now,
+        updatedAt: now,
+      }
+      const paymentResult = await db.collection('payments').insertOne(paymentDoc)
+      paymentId = paymentResult.insertedId
+    }
 
     await db.collection('bookings').updateOne(
       { _id: oid },
@@ -33,16 +60,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         $set: {
           paymentStatus: 'paid',
           status: 'confirmed',
-          paymentId: paymentResult.insertedId,
+          paymentId,
           updatedAt: now,
         },
       }
     )
 
-    await db.collection('users').updateOne(
-      { _id: booking.userId },
-      { $inc: { loyaltyPoints: 10 } }
-    )
+    if (shouldGrantLoyalty) {
+      await db.collection('users').updateOne(
+        { _id: booking.userId },
+        { $inc: { loyaltyPoints: 10 } }
+      )
+    }
 
     const updated = await db.collection('bookings').findOne({ _id: oid })
     return NextResponse.json(toJSON(updated!))
