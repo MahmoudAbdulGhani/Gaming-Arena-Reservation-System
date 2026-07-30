@@ -55,7 +55,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // Deduct loyalty points (if they were awarded)
     await db.collection('users').updateOne(
       { _id: booking.userId },
-      { $inc: { loyaltyPoints: -10 } }
+      { $inc: { loyaltyPoints: -(10 * booking.durationHours) } }
     )
 
     // Update existing payment record to refunded
