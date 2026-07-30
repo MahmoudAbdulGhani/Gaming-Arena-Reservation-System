@@ -7,6 +7,7 @@ import { CheckCircle2, Clock, Calendar, Gamepad2, Download, LayoutDashboard, Cpu
 import jsPDF from 'jspdf'
 import type { BookingData } from '@/app/booking/page'
 import { roomTypeLabels } from '@/lib/types'
+import { getRoomPrimaryImage } from '@/lib/room-images'
 
 
 interface Props {
@@ -346,7 +347,7 @@ function handleDownloadReceipt() {
         <div className="p-6 rounded-2xl bg-[#131824] border border-[#262D3D] text-left mb-6">
           <div className="flex items-center gap-4 mb-5">
             <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0">
-              <Image src={currentRoom.images[0] || '/images/room-pc.png'} alt={currentRoom.name} fill className="object-cover" />
+              <Image src={getRoomPrimaryImage(currentRoom)} alt={currentRoom.name} fill className="object-cover" />
             </div>
             <div>
               <p className="font-bold text-[#F5F6FA]" style={{ fontFamily: 'var(--font-display)' }}>

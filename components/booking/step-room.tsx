@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Zap, Monitor, Gamepad2, Glasses, Users, Cpu } from 'lucide-react'
 import type { Room, Device } from '@/lib/types'
 import { roomTypeLabels } from '@/lib/types'
+import { getRoomPrimaryImage } from '@/lib/room-images'
 
 const typeIcons: Record<string, React.ReactNode> = {
   pc: <Monitor className="w-4 h-4" />,
@@ -93,7 +94,7 @@ export default function BookingStepRoom({ preselectedId, onComplete }: Props) {
               )}
 
               <div className="relative h-36 overflow-hidden">
-                <Image src={room.images[0] || '/images/room-pc.png'} alt={room.name} fill className="object-cover" />
+                <Image src={getRoomPrimaryImage(room)} alt={room.name} fill className="object-cover" />
                 <div className="absolute inset-0 bg-linear-to-t from-[#131824] via-transparent to-transparent" />
                 <div className="absolute bottom-2 left-3">
                   <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#0B0E14]/80 text-xs text-[#9BA3B7] backdrop-blur-sm">
