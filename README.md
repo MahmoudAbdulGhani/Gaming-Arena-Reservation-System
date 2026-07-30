@@ -1,18 +1,18 @@
-# GameZone Arena — Gaming Arena Reservation System
+# GameZone Arena - Gaming Arena Reservation System
 
-A web application for browsing gaming arenas, booking real-time slots, and managing reservations. Built with Next.js 16, TypeScript, MongoDB, and Stripe.
+A web application for browsing gaming arenas, booking real-time slots, and managing reservations. Built with Next.js 16, TypeScript, MongoDB.
 
 ## Features
 
-- **Room Browsing** — Browse PC, Console, VR, and Private rooms with availability status
-- **Booking Flow** — Select room → pick date/time → choose devices → confirm & pay
-- **Automatic Status Transitions** — `confirmed → in_progress → completed` with device freeing
-- **Conflict Detection** — Time-slot based device conflict checking prevents double-booking
-- **Private Rooms** — Flat rate pricing, books all devices, skips device selection step
-- **Notifications** — In-app reminders 1 hour before booking, admin alerts on new bookings
-- **Admin Panel** — Manage rooms, devices, users, bookings; process refunds; download reports
-- **Payment** — Stripe card payments and cash payment support
-- **Policy Enforcement** — Cancel blocked within 1 hour of start time; modify always allowed
+- **Room Browsing** - Browse PC, Console, VR, and Private rooms with availability status
+- **Booking Flow** - Select room → pick date/time → choose devices → confirm & pay
+- **Automatic Status Transitions** - `confirmed → in_progress → completed` with device freeing
+- **Conflict Detection** - Time-slot based device conflict checking prevents double-booking
+- **Private Rooms** - Flat rate pricing, books all devices, skips device selection step
+- **Notifications** - In-app reminders 1 hour before booking, admin alerts on new bookings
+- **Admin Panel** - Manage rooms, devices, users, bookings; process refunds; download reports
+- **Payment** - Stripe card payments and cash payment support
+- **Policy Enforcement** - Cancel blocked within 1 hour of start time; modify always allowed
 
 ## Tech Stack
 
@@ -25,8 +25,6 @@ A web application for browsing gaming arenas, booking real-time slots, and manag
 | Payments | Stripe |
 | Email | Nodemailer (SMTP) |
 | Styling | Tailwind CSS |
-| Icons | Lucide React |
-| PDF | jsPDF + jspdf-autotable |
 
 ## Getting Started
 
